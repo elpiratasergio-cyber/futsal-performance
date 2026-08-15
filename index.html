@@ -3694,6 +3694,7 @@ window.FCAddDays=function(d,n){const x=new Date(d);x.setDate(x.getDate()+Number(
   function pad(n){return String(n).padStart(2,'0')}
   function iso(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
   function formatDate(v){const d=new Date(v+'T12:00:00');return d.toLocaleDateString('es-ES',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})}
+  window.FCInfantilFallback=fallback;
   function addDays(d,n){return window.FCAddDays(d,n)}
   function monday(d){const x=new Date(d);const day=x.getDay();const diff=(day===0?-6:1-day);return window.FCAddDays(x,diff)}
   function clamp(arr){return arr.length?arr[Math.floor(Math.random()*arr.length)]:null}
@@ -3918,7 +3919,8 @@ window.FCAddDays=function(d,n){const x=new Date(d);x.setDate(x.getDate()+Number(
         });
       }
     }catch(_){}
-    pool=[...pool,...((fallback&&fallback[block])||[]).map(a=>({name:a[0],execution:a[1],objective:a[2]}))];
+    const fb=window.FCInfantilFallback||{};
+    pool=[...pool,...((fb[block])||[]).map(a=>({name:a[0],execution:a[1],objective:a[2]}))];
     const unique=[];const seen=new Set();
     pool.forEach(e=>{const k=uniqueKey(e);if(k&&!seen.has(k)){seen.add(k);unique.push(e)}});
     const fresh=unique.filter(e=>!used.has(uniqueKey(e)));
@@ -4304,6 +4306,13 @@ window.FCAddDays=function(d,n){const x=new Date(d);x.setDate(x.getDate()+Number(
   document.addEventListener('change',refreshPhase);
   setTimeout(refreshPhase,600);
 })();
+</script>
+
+
+<script>
+// Compatibilidad Safari/iPad: funciones y datos del planificador semanal accesibles globalmente.
+window.FCAddDays = window.FCAddDays || function(d,n){const x=new Date(d);x.setDate(x.getDate()+Number(n||0));return x};
+window.FCInfantilFallback = window.FCInfantilFallback || {};
 </script>
 
 </body></html>
