@@ -312,6 +312,31 @@ header .inner,.wrap{width:100%}
 .scheme-key{display:flex;gap:14px;flex-wrap:wrap;margin:7px 0 0;font-size:12px;color:#52645d;}
 </style>
 
+
+<style>
+/* Mejoras de interacción del planificador infantil */
+.week-card-actions{display:flex;justify-content:flex-end;padding:8px 14px 0}
+.week-exchange{
+  display:inline-flex;align-items:center;gap:6px;margin-top:10px;
+  padding:8px 11px;border:1px solid #cbdcd4;border-radius:10px;
+  background:#fff;color:#174b3a;font-weight:800;font-size:12px;cursor:pointer;
+}
+.week-exchange:hover{background:#f1f8f4}
+.week-card-actions .small{padding:7px 10px;font-size:12px}
+.week-visual-details{margin-top:10px;border:1px solid #d6e4dd;border-radius:12px;background:#fbfdfc;overflow:hidden}
+.week-visual-details>summary{cursor:pointer;padding:9px 11px;color:#174b3a;font-weight:900;list-style:none}
+.week-visual-details>summary::-webkit-details-marker{display:none}
+.week-visual-details[open]>summary{background:#f0f7f3}
+.week-visual{padding:8px 10px 12px;display:block!important}
+.week-visual svg{display:block;width:100%;height:auto;border-radius:12px}
+.scheme-key{display:flex;flex-wrap:wrap;gap:8px;margin:8px 2px 0;font-size:11px;color:#52645c}
+.scheme-key span{padding:4px 7px;background:#f1f5f3;border-radius:999px}
+@media(max-width:600px){
+  .week-card-actions{justify-content:stretch}
+  .week-card-actions .small{width:100%}
+  .week-exchange{width:100%;justify-content:center}
+}
+</style>
 </head><body>
 <header>
   <div class="inner">
@@ -2801,7 +2826,7 @@ header .inner,.wrap{width:100%}
       <button class="secondary" onclick="saveInfantilWeek()">💾 Guardar semana</button>
       <button class="secondary" onclick="loadInfantilWeek()">↻ Cargar semana guardada</button>
       <button class="secondary" onclick="printInfantilWeek()">🖨 Imprimir / PDF</button>
-      <button class="danger" onclick="clearInfantilWeeks()">Vaciar semanas</button>
+      <button class="danger" onclick="clearInfantilWeeks()">Vaciar todas</button>
     </div>
     <div id="seasonSummary"></div>
   </div>
@@ -4384,6 +4409,11 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     }else{
       out+='<line x1="130" y1="90" x2="330" y2="150" stroke="'+green+'" stroke-width="5"/><line x1="330" y1="150" x2="460" y2="180" stroke="'+green+'" stroke-width="5"/><polygon points="460,180 445,171 447,188" fill="'+green+'"/>';
     }
+    /* Conos: se mantienen visibles y sirven como referencia espacial, igual que en el generador 20'. */
+    var cones={minigame:[[205,65],[505,215]],possession:[[240,55],[520,245]],technical:[[245,70],[245,230]],finishing:[[350,70],[350,230]],match:[[315,65],[315,235]]}[block]||[[230,80],[430,220]];
+    cones.forEach(function(c){
+      out+='<path d="M '+c[0]+' '+(c[1]+13)+' L '+(c[0]+8)+' '+c[1]+' L '+(c[0]+16)+' '+(c[1]+13)+' Z" fill="'+orange+'" stroke="#b77900" stroke-width="1"/>';
+    });
     players.forEach(function(p){out+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="11" fill="'+p[2]+'" stroke="#ffffff" stroke-width="2"/>';});
     var ball={possession:[360,145],finishing:[420,135],technical:[420,180],minigame:[360,135],match:[380,150]}[block]||[360,150];
     out+='<circle cx="'+ball[0]+'" cy="'+ball[1]+'" r="7" fill="#fff" stroke="#111" stroke-width="2"/>';
@@ -4415,19 +4445,132 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     if(!history.length){el.innerHTML='<div class="empty">Todavía no hay semanas generadas.</div>';return;}
     el.innerHTML=history.map(function(w,index){
       var open=index===history.length-1?' open':'';
-      return '<details class="week-card"'+open+'><summary><span>SEMANA '+w.weekNo+' · '+escapeHtml(w.sessions[0].dateLabel)+' — '+escapeHtml(w.sessions[1].dateLabel)+'</span><span class="week-meta">2 sesiones · '+escapeHtml(w.phase)+'</span></summary><div class="week-body"><div class="season-note"><b>Enfoque:</b> '+escapeHtml(w.focus.join(' · '))+'</div>'+w.sessions.map(function(s){
-        return '<div class="session-day"><h4><span>'+s.day+' · '+escapeHtml(s.dateLabel)+'</span><span>'+escapeHtml(s.phase)+'</span></h4><div style="padding:0 14px 12px">'+s.rows.map(function(r){
-          return '<div class="session-block"><div class="session-block-title"><strong>'+escapeHtml(r.name)+'</strong><span class="time">'+escapeHtml(r.time)+'</span></div><div class="week-ex-desc"><b>Objetivo:</b> '+escapeHtml(r.objective)+'<br>'+escapeHtml(r.desc)+'</div>'+visual(r.block,r.name)+'</div>';
-        }).join('')+'</div></div>';
-      }).join('')+'</div></details>';
+      return '<details class="week-card"'+open+'>'+
+        '<summary><span>SEMANA '+w.weekNo+' · '+escapeHtml(w.sessions[0].dateLabel)+' — '+escapeHtml(w.sessions[1].dateLabel)+'</span>'+
+        '<span class="week-meta">2 sesiones · '+escapeHtml(w.phase)+'</span></summary>'+
+        '<div class="week-body">'+
+        '<div class="season-note"><b>Enfoque:</b> '+escapeHtml(w.focus.join(' · '))+'</div>'+
+        '<div class="week-card-actions"><button class="secondary small" onclick="event.preventDefault();event.stopPropagation();deleteInfantilWeek('+w.weekNo+')">🗑️ Eliminar semana</button></div>'+
+        w.sessions.map(function(s,si){
+          return '<div class="session-day"><h4><span>'+s.day+' · '+escapeHtml(s.dateLabel)+'</span><span>'+escapeHtml(s.phase)+'</span></h4><div style="padding:0 14px 12px">'+
+          s.rows.map(function(r,ri){
+            var canChange=ri>0 && ri<5 && r.exercise;
+            var changeBtn=canChange?'<button class="week-exchange" onclick="replaceInfantilExercise('+w.weekNo+','+si+','+ri+');event.stopPropagation()">🔄 Cambiar ejercicio</button>':'';
+            return '<div class="session-block">'+
+              '<div class="session-block-title"><strong>'+escapeHtml(r.name)+'</strong><span class="time">'+escapeHtml(r.time)+'</span></div>'+
+              '<div class="week-ex-desc"><b>Objetivo:</b> '+escapeHtml(r.objective)+'<br>'+escapeHtml(r.desc)+'</div>'+
+              changeBtn+
+              visual(r.block,r.name) +
+            '</div>';
+          }).join('')+
+          '</div></div>';
+        }).join('')+
+        '</div></details>';
     }).join('');
   }
 
   function setSummary(w){
+
     var el=document.getElementById('seasonSummary');
     if(!el)return;
     el.innerHTML='<div class="season-summary"><div class="season-stat"><b>'+w.weekNo+'</b><span>semana</span></div><div class="season-stat"><b>2</b><span>sesiones</span></div><div class="season-stat"><b>90\'</b><span>por sesión</span></div><div class="season-stat"><b>'+w.options.players+'</b><span>jugadores</span></div></div>';
   }
+
+
+  function replacementPool(block,currentId){
+    var pools={
+      minigame:['Activación','Juego','Competencia','Reacción'],
+      possession:['Posesión','Pase','Técnico','Rondo'],
+      technical:['Técnico-táctico','Técnico','Táctico','Pase'],
+      finishing:['Finalización','Tiro','Remate'],
+      match:['Juego','Partido','Transición','Táctico']
+    };
+    var keys=pools[block]||[];
+    var current=norm(String(currentId||''));
+    var candidates=EX.filter(function(e){
+      if(e && e.custom===false){}
+      var text=norm([e.name,e.cat,e.type,e.objective,e.execution].join(' '));
+      if(!e || !e.name || norm(String(e.id||''))===current)return false;
+      return !keys.length || keys.some(function(k){return text.indexOf(norm(k))>=0;});
+    });
+    /* Si el filtro por familia es demasiado estricto, ampliamos a ejercicios
+       generales para que siempre exista una alternativa. */
+    if(!candidates.length){
+      candidates=EX.filter(function(e){return e && e.name && norm(String(e.id||''))!==current;});
+    }
+    return candidates;
+  }
+
+  window.replaceInfantilExercise=function(weekNo,sessionIndex,rowIndex){
+    try{
+      var history=loadHistory();
+      var week=history.filter(function(w){return Number(w.weekNo)===Number(weekNo);})[0];
+      if(!week || !week.sessions || !week.sessions[sessionIndex])return;
+
+      var row=week.sessions[sessionIndex].rows[rowIndex];
+      if(!row || !row.exercise){
+        alert('Este bloque no admite cambio de ejercicio.');
+        return;
+      }
+
+      var candidates=replacementPool(row.block,row.exercise.id);
+      if(!candidates.length){alert('No hay otro ejercicio disponible para este bloque.');return;}
+
+      /* Evitar ejercicios que ya aparecen en esta semana. */
+      var inWeek={};
+      week.sessions.forEach(function(s){
+        (s.rows||[]).forEach(function(r){
+          if(r.exercise && r!==row)inWeek[uniqueKey(r.exercise)]=true;
+        });
+      });
+      var fresh=candidates.filter(function(e){return !inWeek[uniqueKey(e)];});
+      if(fresh.length)candidates=fresh;
+
+      var pick=candidates[Math.floor(Math.random()*candidates.length)];
+      row.exercise=pick;
+      row.name=pick.name;
+      row.desc=pick.execution||pick.desc||'Adaptar la tarea al nivel del grupo.';
+      row.objective=pick.objective||'Aplicación del contenido';
+
+      /* Mantener el ejercicio nuevo dentro del historial y refrescar pantalla. */
+      var merged=history.filter(function(w){return Number(w.weekNo)!==Number(weekNo);});
+      merged.push(week);
+      merged.sort(function(a,b){return Number(a.weekNo)-Number(b.weekNo);});
+      saveHistory(merged);
+      window.__infantilWeek=week;
+      render(merged);
+      setSummary(week);
+    }catch(e){
+      alert('No se ha podido cambiar el ejercicio.\n\n'+(e && e.message ? e.message : String(e)));
+    }
+  };
+
+  window.deleteInfantilWeek=function(weekNo){
+    var history=loadHistory();
+    var week=history.filter(function(w){return Number(w.weekNo)===Number(weekNo);})[0];
+    if(!week)return;
+    if(!confirm('¿Eliminar únicamente la Semana '+weekNo+'?'))return;
+
+    var remaining=history.filter(function(w){return Number(w.weekNo)!==Number(weekNo);});
+    saveHistory(remaining);
+
+    if(window.__infantilWeek && Number(window.__infantilWeek.weekNo)===Number(weekNo)){
+      window.__infantilWeek=null;
+    }
+    render(remaining);
+
+    var current=document.getElementById('seasonWeek');
+    var summary=document.getElementById('seasonSummary');
+    if(current && Number(current.value)===Number(weekNo)){
+      var next=remaining.length?remaining[remaining.length-1].weekNo:weekNo;
+      current.value=next;
+    }
+    if(summary){
+      summary.innerHTML=remaining.length
+        ? '<div class="season-note">Semana '+weekNo+' eliminada. Las demás semanas se mantienen.</div>'
+        : '';
+    }
+  };
 
   window.generateInfantilWeek=function(){
     try{
