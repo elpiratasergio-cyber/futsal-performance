@@ -170,6 +170,27 @@ header .inner,.wrap{width:100%}
 .history-chevron{font-size:20px;font-weight:900;line-height:1;transition:transform .18s ease}
 .history-card[open] .history-chevron{transform:rotate(180deg)}
 .history-card-body{padding:0 12px 12px}
+.custom-panel{border:1px solid #b9e4c8;background:linear-gradient(180deg,#fbfffc,#f5fbf7)}
+.custom-panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.custom-help{color:var(--muted);font-size:13px;margin:5px 0 0}
+.custom-btn{background:#166534;color:#fff}
+.custom-modal{position:fixed;inset:0;background:rgba(8,20,14,.72);display:none;align-items:center;justify-content:center;padding:14px;z-index:120}
+.custom-modal.show{display:flex}
+.custom-form-card{width:min(760px,96vw);max-height:94vh;overflow:auto;background:#fff;border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,.35)}
+.custom-form-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:18px 20px;border-bottom:1px solid #e2ece6}
+.custom-form-head h2{margin:0}
+.custom-form{padding:18px 20px;display:grid;gap:12px}
+.custom-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.custom-form label{display:block;font-size:11px;font-weight:900;text-transform:uppercase;color:#64756e;margin-bottom:5px}
+.custom-form textarea{font:inherit;width:100%;min-height:80px;padding:10px;border:1px solid var(--line);border-radius:10px;resize:vertical}
+.custom-form input[type=file]{padding:9px;border:1px dashed #b9cfc3;border-radius:10px;width:100%;background:#f8fcfa}
+.custom-photo-preview{width:100%;max-height:240px;object-fit:contain;border-radius:12px;border:1px solid #d7e6dd;background:#f6fbf8;display:none}
+.custom-form-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.custom-photo{width:100%;max-height:220px;object-fit:contain;border-radius:12px;background:#f6fbf8;border:1px solid #d5e5dc;margin:8px 0}
+.custom-label{background:#ede9fe!important;color:#6d28d9!important}
+.custom-delete{background:#fee2e2;color:#b91c1c;margin-top:6px}
+@media(max-width:700px){.custom-form-grid{grid-template-columns:1fr}.custom-form-card{max-height:98vh}.custom-form-head,.custom-form{padding:14px}}
+
 .history-card-body .history-card-actions{padding-top:2px;margin-bottom:8px}
 
 </style></head><body>
@@ -207,6 +228,14 @@ header .inner,.wrap{width:100%}
   <div id="historyList" class="history-list">
     <div class="history-empty">Todavía no hay sesiones guardadas.</div>
   </div>
+</section>
+
+<section class="panel custom-panel">
+  <div class="custom-panel-head">
+    <div><h2>📸 Mis ejercicios</h2><p class="custom-help">Añade tus propios ejercicios con una foto, descripción y datos. Se guardan en este dispositivo y aparecen en tu biblioteca y en el generador si activas esa opción.</p></div>
+    <button class="custom-btn" onclick="openCustomExerciseForm()">＋ Añadir mi ejercicio</button>
+  </div>
+  <div id="customExerciseStatus" class="history-status"></div>
 </section>
 
 <section class="panel"><div class="filters"><input id="search" placeholder="Buscar ejercicio, objetivo, material..." oninput="filterCards()">
@@ -2667,6 +2696,92 @@ const GAMES = [
 {name:"Juego 4x4 · comodín interior a un toque",cat:"Juego inicial / Posesión",type:"Posesión",ball:"Con bal\u00f3n",intensity:"Alta",players:"9-13",dose:"2 x 5 min",objective:"Mejorar juego entre líneas y velocidad de pase",execution:"Cuatro contra cuatro con un comodín interior que juega siempre con el poseedor y a un toque. El objetivo es conservar y progresar hacia la portería.",material:"Balones + conos + petos + porterías",id:243,mode:"Grupo",youtube:null,youtube_search:"https://www.youtube.com/results?search_query=Juego+4x4+%C2%B7+comod%C3%ADn+interior+a+un+toque+ejercicio+f%C3%BAtbol+sala"},
 ];
 EX.push(...GAMES);
+
+/* ===== EJERCICIOS PROPIOS CON FOTO ===== */
+const CUSTOM_EXERCISES_KEY='fp_custom_exercises_v1';
+function getCustomExercises(){
+  try{const a=JSON.parse(localStorage.getItem(CUSTOM_EXERCISES_KEY)||'[]');return Array.isArray(a)?a:[]}catch(e){return []}
+}
+function saveCustomExercises(a){localStorage.setItem(CUSTOM_EXERCISES_KEY,JSON.stringify(a))}
+function customCategoryOptions(){
+  const el=document.getElementById('ceCat'); if(!el)return;
+  const current=el.value;
+  el.innerHTML='<option value="Mis ejercicios">Mis ejercicios</option>'+uniq(EX.map(x=>x.cat).filter(Boolean)).map(v=>`<option value="${escHTML(v)}">${escHTML(v)}</option>`).join('');
+  if(current && [...el.options].some(o=>o.value===current))el.value=current;
+}
+function mergeCustomExercises(){
+  const custom=getCustomExercises();
+  const base=EX.filter(x=>!x.custom);
+  EX.splice(0,EX.length,...base,...custom);
+  rebuildFilterOptions();
+  renderDbCards();
+}
+function setCustomStatus(msg,error=false){
+  const el=document.getElementById('customExerciseStatus');
+  if(el){el.textContent=msg;el.style.color=error?'#b91c1c':'#64756e'}
+}
+function openCustomExerciseForm(){
+  customCategoryOptions();
+  document.getElementById('customExerciseModal').classList.add('show');
+  document.getElementById('customExerciseForm')?.reset();
+  document.getElementById('ceGenerator').checked=true;
+  document.getElementById('cePhotoPreview').style.display='none';
+  customCategoryOptions();
+}
+function closeCustomExerciseForm(){document.getElementById('customExerciseModal').classList.remove('show')}
+function previewCustomPhoto(ev){
+  const file=ev.target.files?.[0],img=document.getElementById('cePhotoPreview');
+  if(!file||!img)return;
+  const r=new FileReader();r.onload=()=>{img.src=r.result;img.style.display='block'};r.readAsDataURL(file);
+}
+function compressCustomPhoto(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onerror=()=>reject(reader.error);
+    reader.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        const max=1200,scale=Math.min(1,max/Math.max(img.width,img.height));
+        const c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.width*scale));c.height=Math.max(1,Math.round(img.height*scale));
+        const ctx=c.getContext('2d');ctx.drawImage(img,0,0,c.width,c.height);
+        resolve(c.toDataURL('image/jpeg',.78));
+      };
+      img.onerror=reject;img.src=reader.result;
+    };reader.readAsDataURL(file);
+  });
+}
+async function saveCustomExercise(ev){
+  ev.preventDefault();
+  const file=document.getElementById('cePhoto').files?.[0];
+  if(!file){setCustomStatus('Selecciona una foto.',true);return}
+  try{
+    const photo=await compressCustomPhoto(file);
+    const id=Date.now();
+    const x={
+      id,name:document.getElementById('ceName').value.trim(),cat:document.getElementById('ceCat').value||'Mis ejercicios',
+      type:document.getElementById('ceType').value.trim()||'Ejercicio propio',ball:document.getElementById('ceBall').value,
+      intensity:document.getElementById('ceIntensity').value,players:document.getElementById('cePlayers').value.trim()||'4-16',
+      dose:document.getElementById('ceDose').value.trim()||'10 min',objective:document.getElementById('ceObjective').value.trim()||'Trabajo específico',
+      execution:document.getElementById('ceExecution').value.trim()||'Realizar según la referencia visual.',material:document.getElementById('ceMaterial').value.trim()||'Sin especificar',
+      mode:document.getElementById('ceMode').value,youtube:document.getElementById('ceYoutube').value.trim()||null,youtube_search:null,
+      photo,custom:true,useInGenerator:document.getElementById('ceGenerator').checked,visual_config:{}
+    };
+    const all=[...getCustomExercises(),x];saveCustomExercises(all);
+    if(!EX.some(e=>e.id===x.id))EX.push(x);
+    rebuildFilterOptions();renderDbCards();customCategoryOptions();
+    closeCustomExerciseForm();
+    setCustomStatus(`Guardado: ${x.name}`);
+    document.getElementById('count').textContent=EX.length;
+  }catch(err){console.error(err);setCustomStatus('No se pudo procesar la foto. Prueba con otra imagen.',true)}
+}
+function deleteCustomExercise(id){
+  const x=EX.find(e=>e.id==id);if(!x?.custom)return;
+  if(!confirm(`¿Eliminar «${x.name}» de Mis ejercicios?`))return;
+  saveCustomExercises(getCustomExercises().filter(e=>e.id!=id));
+  const i=EX.findIndex(e=>e.id==id);if(i>=0)EX.splice(i,1);
+  rebuildFilterOptions();renderDbCards();setCustomStatus('Ejercicio eliminado.');
+}
+function customVisual(x){return x.photo?`<img class="custom-photo" src="${x.photo}" alt="${escHTML(x.name)}">`:renderExerciseDiagram(x)}
 let session=[];function uniq(a){return [...new Set(a)].sort()}function fill(id,vals){const e=document.getElementById(id);vals.forEach(v=>{let o=document.createElement('option');o.value=v;o.textContent=v;e.appendChild(o)})}
 fill('cat',uniq(EX.map(x=>x.cat)));fill('type',uniq(EX.map(x=>x.type)));fill('ball',uniq(EX.map(x=>x.ball)));fill('intensity',uniq(EX.map(x=>x.intensity)));fill('playersFilter',uniq(EX.map(x=>x.players)));
 function filterCards(){const q=document.getElementById('search').value.toLowerCase(),f={cat:cat.value,type:type.value,ball:ball.value,intensity:intensity.value,players:playersFilter.value};let n=0;document.querySelectorAll('.card').forEach(c=>{const x=EX.find(e=>e.id==c.dataset.id),s=c.dataset.search;const ok=(!q||s.includes(q))&&(!f.cat||x.cat==f.cat)&&(!f.type||x.type==f.type)&&(!f.ball||x.ball==f.ball)&&(!f.intensity||x.intensity==f.intensity)&&(!f.players||x.players==f.players);c.style.display=ok?'flex':'none';if(ok)n++});document.getElementById('count').textContent=n;document.getElementById('empty').style.display=n?'none':'block'}
@@ -2729,12 +2844,13 @@ function openExercise(id){
   document.getElementById('modalTitle').textContent=x.name;
   document.getElementById('modalMeta').innerHTML=`<span>${x.cat}</span><span>${x.ball}</span><span>${x.intensity}</span><span>${x.dose}</span>`;
   const video=x.youtube||x.youtube_search;
-const videoHtml=video?`<p><a class="yt-btn modal-yt" href="${video}" target="_blank" rel="noopener noreferrer">${x.youtube?'▶ Ver técnica en YouTube':'🔎 Buscar técnica en YouTube'}</a></p>`:'';
-document.getElementById('modalBody').innerHTML=`<div class="modalScheme">${getSchemeFromCard(x.id)}</div><p><b>Modalidad:</b> ${x.mode}</p><p><b>Objetivo:</b> ${x.objective}</p><p><b>Ejecución:</b> ${x.execution}</p><p><b>Material:</b> ${x.material}</p>${videoHtml}`;
+const videoHtml=video?`<p><a class="yt-btn modal-yt" href="${escHTML(video)}" target="_blank" rel="noopener noreferrer">${x.youtube?'▶ Ver técnica en YouTube':'🔎 Buscar técnica en YouTube'}</a></p>`:'';
+const visual=x.custom?`<img class="custom-photo" src="${x.photo}" alt="${escHTML(x.name)}">`:getSchemeFromCard(x.id);
+document.getElementById('modalBody').innerHTML=`<div class="modalScheme">${visual}</div><p><b>Modalidad:</b> ${escHTML(x.mode)}</p><p><b>Objetivo:</b> ${escHTML(x.objective)}</p><p><b>Ejecución:</b> ${escHTML(x.execution)}</p><p><b>Material:</b> ${escHTML(x.material)}</p>${videoHtml}`;
 }
 function getSchemeFromCard(id){const x=EX.find(e=>e.id==id);return x?renderExerciseDiagram(x):'';}
 function closeExercise(){document.getElementById('exerciseModal').classList.remove('show')}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeExercise()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeExercise();closeCustomExerciseForm()}});
 
 function goalLabel(g){return ({auto:'Equilibrada',accel:'Aceleración',cod:'Frenada + COD',power:'Potencia / reactividad',tech:'Técnica + velocidad',specific:'Específico con balón',react:'Reacción + decisión',mixed:'Mixto'})[g]||g}
 function exportSession(){if(!session.length)return;let t="FUTSAL PERFORMANCE · PRIMEROS 20'\\n\\n";session.forEach((x,i)=>t+=`${i+1}. ${x.name} — ${x.minutes} min\\nObjetivo: ${x.objective}\\nEjecución: ${x.execution}\\nMaterial: ${x.material}\\n\\n`);let b=new Blob([t],{type:'text/plain;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='sesion_futsal_20min.txt';a.click();URL.revokeObjectURL(a.href)}
@@ -2752,7 +2868,7 @@ function mapDbExercise(r){return {
   name:r.nombre,cat:r.categoria,type:r.tipo,ball:r.balon||'Sin balón',intensity:r.intensidad||'Media',
   players:r.jugadores||'',dose:r.dosis||'',objective:r.objetivo||'',execution:r.ejecucion||'',material:r.material||'Sin material',
   id:Number(r.id),mode:r.modo||'Grupo',youtube:r.video_url||null,youtube_search:r.youtube_search_url||null,
-  visual_config:r.visual_config||{}
+  visual_config:r.visual_config||{},custom:false,useInGenerator:true
 }}
 function rebuildFilterOptions(){
   [['cat','cat'],['type','type'],['ball','ball'],['intensity','intensity'],['playersFilter','players']].forEach(([id,key])=>{
@@ -2768,15 +2884,15 @@ function renderDbCards(){
     const video=x.youtube||x.youtube_search;
     const videoHtml=video?`<a class="yt-btn" href="${escHTML(video)}" target="_blank" rel="noopener noreferrer">${x.youtube?'▶ Ver técnica en YouTube':'🔎 Buscar técnica en YouTube'}</a>`:'';
     return `<article class="card" data-id="${x.id}" data-search="${escHTML([x.name,x.cat,x.type,x.ball,x.intensity,x.players,x.dose,x.objective,x.execution,x.material,x.mode].join(' ').toLowerCase())}">
-      <div class="top"><span class="num">#${String(x.id).padStart(3,'0')}</span><span class="tag">${escHTML(x.cat)}</span><span class="tag alt">${escHTML(x.ball)}</span><span class="tag mode">${escHTML(x.mode)}</span></div>
-      <h3>${escHTML(x.name)}</h3><p class="objective"><b>Objetivo:</b> ${escHTML(x.objective)}</p>
+      <div class="top"><span class="num">${x.custom?'📸':'#'+String(x.id).padStart(3,'0')}</span><span class="tag ${x.custom?'custom-label':''}">${escHTML(x.cat)}</span><span class="tag alt">${escHTML(x.ball)}</span><span class="tag mode">${escHTML(x.mode)}</span></div>
+      <h3>${escHTML(x.name)}</h3>${x.custom?`<img class="custom-photo" src="${x.photo}" alt="${escHTML(x.name)}">`:''}<p class="objective"><b>Objetivo:</b> ${escHTML(x.objective)}</p>
       <div class="chips"><span><b>Tipo</b>${escHTML(x.type)}</span><span><b>Intensidad</b>${escHTML(x.intensity)}</span><span><b>Jugadores</b>${escHTML(x.players)}</span><span><b>Dosis</b>${escHTML(x.dose)}</span></div>
-      <details><summary>Ver esquema visual + detalles</summary>
-        <div class="scheme-wrap">${renderExerciseDiagram(x)}</div>
+      <details><summary>${x.custom?'Ver foto + detalles':'Ver esquema visual + detalles'}</summary>
+        <div class="scheme-wrap">${x.custom?customVisual(x):renderExerciseDiagram(x)}</div>
         <p class="scheme-key"><span><i class="dot blue"></i> Jugador</span><span><i class="dot green"></i> Trayectoria</span><span><i class="dot purple"></i> Balón / pase</span><span><i class="dot orange"></i> Cono</span><span><i class="dot red"></i> Frenada / oposición</span></p>
         <p><b>Ejecución:</b> ${escHTML(x.execution)}</p><p><b>Material:</b> ${escHTML(x.material)}</p>${videoHtml}
       </details>
-      <button class="add" onclick="addExercise(${x.id})">＋ Añadir a sesión</button>
+      <button class="add" onclick="addExercise(${x.id})">＋ Añadir a sesión</button>${x.custom?`<button class="custom-delete" onclick="deleteCustomExercise(${x.id})">🗑 Eliminar ejercicio propio</button>`:''}
     </article>`;
   }).join('');
   filterCards();
@@ -2787,8 +2903,12 @@ async function syncExercisesFromSupabase(){
     const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
     const {data,error}=await client.from('ejercicios').select('id,nombre,categoria,tipo,balon,intensidad,jugadores,dosis,objetivo,ejecucion,material,modo,video_url,youtube_search_url,visual_config').eq('activo',true).order('id');
     if(error) throw error;
-    if(!Array.isArray(data)||data.length===0) return;
-    EX.splice(0,EX.length,...data.map(mapDbExercise));
+    if(!Array.isArray(data)||data.length===0){
+      mergeCustomExercises();
+      return;
+    }
+    const custom=getCustomExercises();
+    EX.splice(0,EX.length,...data.map(mapDbExercise),...custom);
     rebuildFilterOptions();
     renderDbCards();
     refreshExerciseDiagrams();
@@ -2799,6 +2919,11 @@ async function syncExercisesFromSupabase(){
   }
 }
 window.addEventListener('load',syncExercisesFromSupabase);
+window.addEventListener('load',()=>{
+  mergeCustomExercises();
+  customCategoryOptions();
+});
+
 
 
 /* ===== HISTORIAL DE SESIONES · 2026 ===== */
@@ -2870,6 +2995,7 @@ window.addEventListener('load',syncExercisesFromSupabase);
   }
 
   async function persistSession(plan, date, name){
+    if(plan.some(x=>x.custom)) return null; // ejercicios propios con foto se conservan localmente
     const c=historyClient();
     if(!c) return null;
     const {data,error}=await c.from('training_sessions').insert({
@@ -2936,17 +3062,23 @@ window.addEventListener('load',syncExercisesFromSupabase);
   }
 
   async function refreshHistory(){
+    const local=localHistory();
     try{
       const cloud=await fetchCloudHistory();
-      if(cloud){
-        renderHistory(cloud);
-        setStatus(cloud.length?`${cloud.length} sesión(es) guardada(s) en Supabase.`:'Sin sesiones guardadas todavía.');
+      if(Array.isArray(cloud)){
+        const byId=new Map();
+        [...local,...cloud].forEach(s=>{
+          const key=s?.id ? String(s.id) : `${s?.session_date||''}|${s?.name||''}|${s?.created_at||''}`;
+          if(!byId.has(key))byId.set(key,s);
+        });
+        const merged=[...byId.values()];
+        renderHistory(merged);
+        setStatus(merged.length?`${merged.length} sesión(es) guardada(s).`:'Sin sesiones guardadas todavía.');
         return;
       }
     }catch(err){
       console.warn('Historial Supabase no disponible; se usa la copia local.',err);
     }
-    const local=localHistory();
     renderHistory(local);
     setStatus(local.length?`${local.length} sesión(es) guardada(s) localmente.`:'Sin sesiones guardadas todavía.');
   }
@@ -3192,6 +3324,30 @@ window.addEventListener('load',syncExercisesFromSupabase);
 })();
 
 </script>
+<div id="customExerciseModal" class="custom-modal" onclick="if(event.target===this)closeCustomExerciseForm()">
+  <div class="custom-form-card">
+    <div class="custom-form-head"><div><h2>📸 Añadir ejercicio propio</h2><p class="custom-help">La foto será la referencia visual principal del ejercicio.</p></div><button class="light" onclick="closeCustomExerciseForm()">✕</button></div>
+    <form id="customExerciseForm" class="custom-form" onsubmit="saveCustomExercise(event)">
+      <div class="custom-form-grid">
+        <div><label>Nombre *</label><input id="ceName" required placeholder="Ej. Sprint 5 m + frenada con estímulo"></div>
+        <div><label>Categoría</label><select id="ceCat"></select></div>
+        <div><label>Tipo</label><input id="ceType" placeholder="Ej. Frenada / COD"></div>
+        <div><label>Modalidad</label><select id="ceMode"><option value="Grupo">Grupo</option><option value="Parejas / Grupo">Parejas / Grupo</option><option value="Individual">Individual</option></select></div>
+        <div><label>Balón</label><select id="ceBall"><option>Sin balón</option><option>Con balón</option></select></div>
+        <div><label>Intensidad</label><select id="ceIntensity"><option>Baja</option><option>Media</option><option>Media-Alta</option><option selected>Alta</option></select></div>
+        <div><label>Jugadores</label><input id="cePlayers" placeholder="Ej. 6-10"></div>
+        <div><label>Dosis</label><input id="ceDose" placeholder="Ej. 4 x 30 s"></div>
+      </div>
+      <div><label>Objetivo</label><textarea id="ceObjective" placeholder="Qué quieres trabajar..."></textarea></div>
+      <div><label>Ejecución</label><textarea id="ceExecution" placeholder="Cómo se realiza, paso a paso..."></textarea></div>
+      <div><label>Material</label><input id="ceMaterial" placeholder="Conos + balones + petos"></div>
+      <div><label>Vídeo de YouTube (opcional)</label><input id="ceYoutube" type="url" placeholder="https://www.youtube.com/watch?v=..."></div>
+      <div><label>Foto del ejercicio *</label><input id="cePhoto" type="file" accept="image/*" required onchange="previewCustomPhoto(event)"><img id="cePhotoPreview" class="custom-photo-preview" alt="Vista previa"></div>
+      <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;color:#31423a"><input id="ceGenerator" type="checkbox" checked style="width:auto"> Incluir este ejercicio en el generador automático</label>
+      <div class="custom-form-actions"><button type="button" class="light" onclick="closeCustomExerciseForm()">Cancelar</button><button type="submit" class="green">💾 Guardar ejercicio</button></div>
+    </form>
+  </div>
+</div>
 <div id="exerciseModal" class="exerciseModal" onclick="if(event.target===this)closeExercise()">
   <div class="modalCard">
     <div class="modalHead"><div><h2 id="modalTitle">Ejercicio</h2><div id="modalMeta" class="modalMeta"></div></div><button onclick="closeExercise()">✕</button></div>
@@ -3263,7 +3419,7 @@ window.addEventListener('load',syncExercisesFromSupabase);
     const g=document.getElementById('goal').value,p=Number(document.getElementById('players').value),eq=document.getElementById('equipment').value;
     const history=readHistory();
     const excluded=new Set();
-    const eligible=EX.filter(x=>!isActivationOrIndividual(x)&&rangeOk(x,p)&&equipmentOk(x,eq));
+    const eligible=EX.filter(x=>x.useInGenerator!==false&&!isActivationOrIndividual(x)&&rangeOk(x,p)&&equipmentOk(x,eq));
     let games=eligible.filter(x=>x.cat.startsWith('Juego inicial')&&gameRelevant(x,g));
     let main=eligible.filter(x=>!x.cat.startsWith('Juego inicial')&&goalMatch(x,g));
     if(!games.length)games=eligible.filter(x=>x.cat.startsWith('Juego inicial'));
