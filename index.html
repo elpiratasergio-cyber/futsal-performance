@@ -253,6 +253,25 @@ header .inner,.wrap{width:100%}
 @media(max-width:850px){.season-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.season-grid .wide{grid-column:span 2}.season-summary{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:600px){.top-tabs{padding:0 10px}.top-tab{flex:1;padding:11px 8px;font-size:14px}.season-card{padding:15px}.season-grid{grid-template-columns:1fr}.season-grid .wide{grid-column:span 1}.season-summary{grid-template-columns:1fr 1fr}.session-table{font-size:13px}.session-table th,.session-table td{padding:7px}.session-table td:nth-child(2){width:auto}.week-card>summary{align-items:flex-start;flex-direction:column}}
 @media print{body{background:#fff}.top-tabs,.season-actions,#generatorTab{display:none!important}#seasonTab{display:block!important;max-width:none;margin:0;padding:0}.season-card{box-shadow:none;border:0}.week-card{break-inside:avoid}}
+
+/* ===== PLANIFICACIÓN INFANTIL SEMANAL ===== */
+.week-nav{display:flex;gap:8px;flex-wrap:wrap}
+.week-nav button{border:0;border-radius:10px;padding:10px 13px;font-weight:800;cursor:pointer}
+.week-scheme-toggle{display:inline-flex;align-items:center;gap:6px;border:0;background:#eaf7ee;color:#0f766e;border-radius:9px;padding:7px 10px;font-weight:800;cursor:pointer;margin-top:7px}
+.session-block{border-top:1px solid #edf2ef;padding:12px 0}
+.session-block:first-child{border-top:0}
+.session-block-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.session-block-title strong{font-size:15px}
+.session-block-title .time{font-weight:900;white-space:nowrap;color:#0f766e}
+.week-visual{display:none;margin:10px 0 4px}
+.week-visual.show{display:block}
+.week-visual .scheme-wrap{margin:0}
+.week-ex-desc{color:#52645c;font-size:13px;line-height:1.45;margin:6px 0 0}
+@media(max-width:600px){
+  .week-nav{width:100%}.week-nav button{flex:1}
+  .session-block-title{flex-direction:column}
+  .session-block-title .time{order:-1}
+}
 </style></head><body>
 <header>
   <div class="inner">
@@ -2721,11 +2740,12 @@ header .inner,.wrap{width:100%}
 
 <section id="seasonTab" style="display:none">
   <div class="season-card">
-    <h2 style="margin-top:0">📅 Generador de temporada · Infantil Fútbol Sala</h2>
-    <p class="hint">Genera semanas completas de entrenamiento a partir de la estructura que utilizaste el año pasado, manteniendo progresión, variedad y evitando repetir sesiones de forma idéntica.</p>
+    <h2 style="margin-top:0">📅 Generador semanal · Infantil Fútbol Sala</h2>
+    <p class="hint">Genera <b>una semana cada vez</b>, con dos sesiones y progresión durante la temporada. La estructura toma como base tu planificación del año pasado y combina ejercicios de la biblioteca evitando repeticiones cercanas.</p>
     <div class="season-grid">
       <div><label>Inicio de temporada</label><input id="seasonStart" type="date"></div>
       <div><label>Fin de temporada</label><input id="seasonEnd" type="date"></div>
+      <div><label>Semana a generar</label><input id="seasonWeek" type="number" min="1" value="1"></div>
       <div><label>Primer día de entrenamiento</label><select id="seasonDay1"><option value="2">Martes</option><option value="1">Lunes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option></select></div>
       <div><label>Segundo día</label><select id="seasonDay2"><option value="5" selected>Viernes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="6">Sábado</option></select></div>
       <div><label>Duración sesión</label><select id="seasonDuration"><option value="90" selected>90 minutos</option><option value="75">75 minutos</option><option value="105">105 minutos</option></select></div>
@@ -2733,19 +2753,32 @@ header .inner,.wrap{width:100%}
       <div class="wide"><label>Objetivo global</label><select id="seasonGoal"><option value="development" selected>Desarrollo integral · técnica + táctica + toma de decisiones</option><option value="technical">Técnica individual y colectiva</option><option value="tactical">Táctica y comprensión del juego</option><option value="transition">Transiciones · presión · repliegue</option><option value="finishing">Finalización y ataque</option><option value="competition">Preparación competitiva</option></select></div>
       <div><label>Incluir ejercicios propios</label><select id="seasonCustom"><option value="yes" selected>Sí</option><option value="no">No</option></select></div>
     </div>
-    <div class="season-note" style="margin-top:15px">La estructura base sigue tu ejemplo: <b>10' movilidad · 5' minijuego · 15' posesión · 15' técnico-táctico · 15' finalización · 30' partido</b>. Si cambias la duración total, la web reajusta el bloque de partido manteniendo el resto.</div>
+    <div class="season-note" style="margin-top:15px">
+      <b>Estructura de referencia:</b> 10' movilidad · 5' minijuego · 15' posesión · 15' técnico-táctico · 15' finalización · bloque final de partido.
+      La web mantiene esta lógica y reajusta el partido si cambias la duración total. La movilidad de 10' se conserva aquí porque forma parte de la planificación infantil que me pasaste.
+    </div>
     <div class="season-actions">
-      <button class="primary" onclick="generateInfantilSeason()">⚡ Generar temporada</button>
-      <button class="secondary" onclick="saveInfantilSeason()">💾 Guardar planificación</button>
-      <button class="secondary" onclick="loadInfantilSeason()">↻ Cargar última</button>
-      <button class="secondary" onclick="window.print()">🖨 Imprimir / PDF</button>
-      <button class="danger" onclick="clearInfantilSeason()">Vaciar</button>
+      <button class="primary" onclick="generateInfantilWeek()">⚡ Generar semana</button>
+      <button class="secondary" onclick="saveInfantilWeek()">💾 Guardar semana</button>
+      <button class="secondary" onclick="loadInfantilWeek()">↻ Cargar semana guardada</button>
+      <button class="secondary" onclick="printInfantilWeek()">🖨 Imprimir / PDF</button>
+      <button class="danger" onclick="clearInfantilWeeks()">Vaciar semanas</button>
     </div>
     <div id="seasonSummary"></div>
   </div>
+
   <div class="season-card">
-    <h3 style="margin-top:0">Planificación semanal</h3>
-    <div id="seasonWeeks"><div class="empty">Configura las fechas y pulsa «Generar temporada».</div></div>
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+      <div>
+        <h3 style="margin:0">Planificación semanal</h3>
+        <p class="hint" style="margin:5px 0 0">Cada semana queda guardada como un bloque desplegable. Puedes ir generando la 1, después la 2, la 3...</p>
+      </div>
+      <div class="week-nav">
+        <button class="secondary" onclick="changeInfantilWeek(-1)">← Semana anterior</button>
+        <button class="secondary" onclick="changeInfantilWeek(1)">Semana siguiente →</button>
+      </div>
+    </div>
+    <div id="seasonWeeks"><div class="empty">Configura la temporada y pulsa «Generar semana».</div></div>
   </div>
 </section>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -3759,6 +3792,276 @@ window.addEventListener('load',()=>{
     start.value='2026-09-01'; end.value='2027-04-30';
   }
   document.addEventListener('DOMContentLoaded',initSeasonDates);
+})();
+</script>
+
+<script>
+(function(){
+  const WEEK_KEY='futsalPerformanceInfantilWeeklyV2';
+
+  function esc(v){
+    return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+  }
+  function weekTotal(start,end){
+    const a=new Date(start+'T12:00:00'), b=new Date(end+'T12:00:00');
+    return Math.max(1,Math.ceil((b-a+1)/(1000*60*60*24*7)));
+  }
+  function weekDates(opts,weekNo){
+    const start=new Date(opts.start+'T12:00:00');
+    const base=addDays(start,(Math.max(1,weekNo)-1)*7);
+    const end=addDays(base,6);
+    const ds=[];
+    for(let d=new Date(base);d<=end;d=addDays(d,1)){
+      if(d>=new Date(opts.start+'T12:00:00') && d<=new Date(opts.end+'T12:00:00') &&
+         (d.getDay()===opts.day1 || d.getDay()===opts.day2)) ds.push(new Date(d));
+    }
+    return ds;
+  }
+
+  function phaseFocus(week,total,goal){
+    const p=week/Math.max(total,1);
+    let phase;
+    if(goal==='competition') phase=p<.18?'Adaptación':p<.45?'Construcción':p<.78?'Competición':'Consolidación';
+    else if(p<.18) phase='Adaptación y fundamentos';
+    else if(p<.42) phase='Construcción técnica';
+    else if(p<.68) phase='Comprensión táctica';
+    else if(p<.88) phase='Transiciones y toma de decisiones';
+    else phase='Consolidación y evaluación';
+    const focus={
+      'Adaptación y fundamentos':['control y pase','duelos 1x1','ocupación básica de espacios'],
+      'Construcción técnica':['perfil corporal','primer toque','pase y movilidad'],
+      'Comprensión táctica':['superioridades','amplitud y profundidad','toma de decisiones'],
+      'Transiciones y toma de decisiones':['presión tras pérdida','repliegue','ataque rápido'],
+      'Consolidación y evaluación':['transferencia al juego','velocidad de decisión','autonomía'],
+      'Competición':['modelo de juego','transiciones','finalización']
+    }[phase]||['juego colectivo'];
+    return {phase,focus};
+  }
+
+  function scoreExercise(e,block,phase,goal,sessionIndex){
+    const t=[e.name,e.objective,e.execution,e.type,e.cat].filter(Boolean).join(' ').toLowerCase();
+    let score=Math.random()*3;
+    const maps={
+      'Adaptación y fundamentos':['control','pase','1x1','rondo','posesión','conducción'],
+      'Construcción técnica':['control','pase','pared','conducción','finaliz'],
+      'Comprensión táctica':['2x1','3x2','superior','apoy','amplitud','zonas','decisión'],
+      'Transiciones y toma de decisiones':['transición','presión','recuper','repliegue','ráp','contra'],
+      'Consolidación y evaluación':['partido','competición','decisión','transición','finaliz'],
+      'Competición':['partido','presión','transición','finaliz','decisión']
+    };
+    (maps[phase]||[]).forEach(k=>{if(t.includes(k))score+=3});
+    const goalMap={
+      technical:['control','pase','conducción','pared'],
+      tactical:['superior','apoyo','zonas','decisión','presión'],
+      transition:['transición','presión','repliegue','recuper'],
+      finishing:['finaliz','tiro','remate','porter'],
+      competition:['partido','competición','decisión'],
+      development:['control','pase','decisión','superior']
+    };
+    (goalMap[goal]||[]).forEach(k=>{if(t.includes(k))score+=1.5});
+    if(sessionIndex===1 && block==='match' && t.includes('partido')) score+=1;
+    return score;
+  }
+
+  function pickWeekly(block,phase,goal,used,allowCustom,sessionIndex){
+    let pool=[];
+    try{
+      if(typeof EX!=='undefined'){
+        pool=EX.filter(e=>allowCustom||!e.custom).filter(e=>{
+          const t=[e.name,e.objective,e.execution,e.type,e.cat].filter(Boolean).join(' ').toLowerCase();
+          const words={
+            minigame:['rondo','juego','pilla','relev','cono','balón loco','atrapa','carrera','mini'],
+            possession:['posesión','rondo','comodín','apoyos','presión','mantener'],
+            technical:['salida','2 vs 1','2x1','3 vs 2','3x2','táctico','conducción','control','pase','transición','1 vs 1','2 vs 2'],
+            finishing:['finaliz','tiro','remate','porter','pared'],
+            match:['partido','juego reducido','mini torneo']
+          };
+          return (words[block]||[]).some(w=>t.includes(w));
+        });
+      }
+    }catch(_){}
+    pool=[...pool,...((fallback&&fallback[block])||[]).map(a=>({name:a[0],execution:a[1],objective:a[2]}))];
+    const unique=[];const seen=new Set();
+    pool.forEach(e=>{const k=uniqueKey(e);if(k&&!seen.has(k)){seen.add(k);unique.push(e)}});
+    const fresh=unique.filter(e=>!used.has(uniqueKey(e)));
+    const source=fresh.length?fresh:unique;
+    if(!source.length)return {name:'Tarea contextual',execution:'Adaptar el espacio, la oposición y las reglas al nivel del grupo.',objective:'Aplicación del objetivo semanal'};
+    const ranked=source.map(e=>({e,s:scoreExercise(e,block,phase,goal,sessionIndex)})).sort((a,b)=>b.s-a.s);
+    const top=ranked.slice(0,Math.min(6,ranked.length));
+    const chosen=top[Math.floor(Math.random()*top.length)].e;
+    used.add(uniqueKey(chosen));
+    return {name:chosen.name,execution:chosen.execution||chosen.desc||'',objective:chosen.objective||'Aplicación del contenido',sourceId:chosen.id||null};
+  }
+
+  function visualScheme(block,title,sessionId){
+    const id='v'+String(sessionId).replace(/\W/g,'');
+    const common=`<rect x="8" y="8" width="744" height="284" rx="18" fill="#f7fbf8" stroke="#bfd6c8" stroke-width="2"/><rect x="28" y="28" width="704" height="244" rx="12" fill="#eaf6ef" stroke="#9bbdaa" stroke-width="2"/><line x1="380" y1="28" x2="380" y2="272" stroke="#9bbdaa" stroke-width="2"/><circle cx="380" cy="150" r="43" fill="none" stroke="#9bbdaa" stroke-width="2"/>`;
+    const cone=(x,y)=>`<path d="M ${x} ${y+12} L ${x+7} ${y-1} L ${x+14} ${y+12} Z" fill="#f59e0b" stroke="#b77900"/>`;
+    const player=(x,y,c='#2563eb')=>`<circle cx="${x}" cy="${y}" r="10" fill="${c}"/><circle cx="${x}" cy="${y-14}" r="6" fill="${c}"/>`;
+    const arrow=(x1,y1,x2,y2,c='#0f9d58')=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="5" stroke-linecap="round"/><path d="M ${x2-2} ${y2-8} L ${x2+10} ${y2} L ${x2-2} ${y2+8} Z" fill="${c}"/>`;
+    const ball=(x,y)=>`<circle cx="${x}" cy="${y}" r="7" fill="#fff" stroke="#222" stroke-width="2"/>`;
+    let inner='';
+    if(block==='minigame'){
+      inner=[player(150,110),player(230,170),player(330,105),player(470,165),player(580,105),ball(330,150),cone(205,70),cone(505,205),arrow(250,125,300,140),arrow(365,150,430,155)].join('');
+    }else if(block==='possession'){
+      inner=[player(140,90),player(140,210),player(620,90),player(620,210),player(300,115,'#dc2626'),player(460,185,'#dc2626'),ball(380,150),arrow(150,90,285,110),arrow(475,180,605,205),arrow(300,115,445,175)].join('');
+    }else if(block==='technical'){
+      inner=[player(120,150),player(300,100),player(300,200),player(610,150,'#dc2626'),ball(180,150),cone(255,70),cone(255,215),arrow(190,150,285,105),arrow(315,105,585,145),arrow(315,200,585,155)].join('');
+    }else if(block==='finishing'){
+      inner=[player(130,150),player(300,90),player(300,210),player(520,150),ball(180,150),cone(350,70),cone(350,215),arrow(190,150,290,100),arrow(310,100,500,145)].join('');
+    }else if(block==='match'){
+      inner=[player(110,90),player(180,150),player(110,210),player(260,120),player(260,190),player(650,90,'#dc2626'),player(580,150,'#dc2626'),player(650,210,'#dc2626'),player(500,120,'#dc2626'),player(500,190,'#dc2626'),ball(380,150),arrow(270,155,470,150)].join('');
+    }else{
+      inner=[player(150,150),player(300,150),player(450,150),cone(220,90),cone(380,90),arrow(165,150,285,150),arrow(315,150,435,150)].join('');
+    }
+    return `<div class="week-visual"><div class="scheme-wrap"><svg class="scheme" viewBox="0 0 760 300" role="img" aria-label="Esquema visual: ${esc(title)}">${common}${inner}<text x="380" y="258" text-anchor="middle" font-size="13" font-weight="800" fill="#17352a">${esc(title)}</text></svg><p class="scheme-key"><span><i class="dot blue"></i> Jugador</span><span><i class="dot green"></i> Trayectoria</span><span><i class="dot purple"></i> Balón / pase</span><span><i class="dot orange"></i> Cono</span><span><i class="dot red"></i> Oposición</span></p></div></div>`;
+  }
+
+  function makeWeeklySession(date,weekNo,totalWeeks,sessionIndex,opts,used){
+    const {phase,focus}=phaseFocus(weekNo,totalWeeks,opts.goal);
+    const min=pickWeekly('minigame',phase,opts.goal,used,opts.custom,sessionIndex);
+    const pos=pickWeekly('possession',phase,opts.goal,used,opts.custom,sessionIndex);
+    const tech=pickWeekly('technical',phase,opts.goal,used,opts.custom,sessionIndex);
+    const fin=pickWeekly('finishing',phase,opts.goal,used,opts.custom,sessionIndex);
+    const match=pickWeekly('match',phase,opts.goal,used,opts.custom,sessionIndex);
+    const matchTime=Math.max(15,(Number(opts.duration)||90)-60);
+    const rows=[
+      {block:'mobility',time:'10 min',name:'Movilidad dinámica + balón',desc:'Movilidad dinámica y coordinación específica para preparar el trabajo de la sesión.',objective:'Preparación y calidad de movimiento'},
+      {block:'minigame',time:'5 min',name:min.name,desc:min.execution,objective:min.objective},
+      {block:'possession',time:'15 min',name:pos.name,desc:pos.execution,objective:pos.objective},
+      {block:'technical',time:'15 min',name:tech.name,desc:tech.execution,objective:tech.objective},
+      {block:'finishing',time:'15 min',name:fin.name,desc:fin.execution,objective:fin.objective},
+      {block:'match',time:matchTime+' min',name:match.name,desc:match.execution,objective:match.objective}
+    ];
+    return {date:iso(date),dateLabel:formatDate(iso(date)),phase,focus,sessionIndex,rows};
+  }
+
+  function weeklyHistory(){
+    try{return JSON.parse(localStorage.getItem(WEEK_KEY)||'[]')}catch(_){return []}
+  }
+
+  function renderWeeklyHistory(){
+    const hist=weeklyHistory().sort((a,b)=>a.weekNo-b.weekNo);
+    const el=document.getElementById('seasonWeeks');
+    if(!el)return;
+    if(!hist.length){el.innerHTML='<div class="empty">Todavía no hay semanas guardadas.</div>';return}
+    el.innerHTML=hist.map((w,wi)=>`
+      <details class="week-card" ${wi===hist.length-1?'open':''}>
+        <summary><span>SEMANA ${w.weekNo} · ${esc(w.sessions[0]?.dateLabel||'')} — ${esc(w.sessions[w.sessions.length-1]?.dateLabel||'')}</span><span class="week-meta">${w.sessions.length} sesiones · ${esc(w.phase||'')}</span></summary>
+        <div class="week-body">
+          <div class="season-note"><b>Enfoque:</b> ${esc((w.focus||[]).join(' · '))}</div>
+          ${w.sessions.map((s,si)=>`
+            <div class="session-day">
+              <h4><span>${si===0?'Sesión A':'Sesión B'} · ${esc(s.dateLabel)}</span><span>${esc(s.phase)}</span></h4>
+              <div style="padding:0 14px 12px">
+                ${s.rows.map((r,ri)=>`
+                  <div class="session-block">
+                    <div class="session-block-title">
+                      <strong>${esc(r.name)}</strong><span class="time">${esc(r.time)}</span>
+                    </div>
+                    <div class="week-ex-desc"><b>Objetivo:</b> ${esc(r.objective)}<br>${esc(r.desc)}</div>
+                    <button class="week-scheme-toggle" onclick="this.nextElementSibling.classList.toggle('show');this.textContent=this.nextElementSibling.classList.contains('show')?'▲ Ocultar esquema visual':'▼ Ver esquema visual'">▼ Ver esquema visual</button>
+                    ${visualScheme(r.block,r.name,`w${w.weekNo}s${si}r${ri}`)}
+                  </div>`).join('')}
+              </div>
+            </div>`).join('')}
+        </div>
+      </details>`).join('');
+  }
+
+  window.generateInfantilWeek=function(){
+    try{
+      const opts=getSeasonOptions();
+      const wn=Math.max(1,Number(document.getElementById('seasonWeek').value)||1);
+      const total=weekTotal(opts.start,opts.end);
+      const dates=weekDates(opts,wn);
+      if(!dates.length) throw new Error('Esa semana no contiene días de entrenamiento dentro del periodo elegido.');
+      const history=weeklyHistory();
+      const used=new Set();
+      history.forEach(w=>w.sessions.forEach(s=>s.rows.slice(1).forEach(r=>{if(r.name)used.add(uniqueKey(r));})));
+      const {phase,focus}=phaseFocus(wn,total,opts.goal);
+      const sessions=dates.map((d,i)=>makeWeeklySession(d,wn,total,i,opts,used));
+      const week={weekNo:wn,phase,focus,createdAt:new Date().toISOString(),options:opts,sessions};
+      const merged=history.filter(w=>w.weekNo!==wn);
+      merged.push(week); merged.sort((a,b)=>a.weekNo-b.weekNo);
+      localStorage.setItem(WEEK_KEY,JSON.stringify(merged));
+      window.__infantilWeek=week;
+      renderWeeklyHistory();
+      document.getElementById('seasonSummary').innerHTML=`<div class="season-summary"><div class="season-stat"><b>${wn}</b><span>semana</span></div><div class="season-stat"><b>${sessions.length}</b><span>sesiones</span></div><div class="season-stat"><b>${opts.duration}'</b><span>por sesión</span></div><div class="season-stat"><b>${total}</b><span>semanas previstas</span></div></div>`;
+      document.getElementById('seasonWeek').value=wn;
+    }catch(e){alert(e.message||'No se ha podido generar la semana.')}
+  };
+
+  window.saveInfantilWeek=function(){
+    if(!window.__infantilWeek){alert('Genera primero una semana.');return}
+    const w=window.__infantilWeek;
+    const hist=weeklyHistory().filter(x=>x.weekNo!==w.weekNo);
+    hist.push(w);hist.sort((a,b)=>a.weekNo-b.weekNo);
+    localStorage.setItem(WEEK_KEY,JSON.stringify(hist));
+    renderWeeklyHistory();
+    alert('Semana '+w.weekNo+' guardada.');
+  };
+
+  window.loadInfantilWeek=function(){
+    const hist=weeklyHistory();
+    if(!hist.length){alert('No hay semanas guardadas.');return}
+    const wn=Math.max(1,Number(document.getElementById('seasonWeek').value)||hist[hist.length-1].weekNo);
+    const w=hist.find(x=>x.weekNo===wn)||hist[hist.length-1];
+    window.__infantilWeek=w;
+    document.getElementById('seasonWeek').value=w.weekNo;
+    if(w.options){
+      document.getElementById('seasonStart').value=w.options.start;
+      document.getElementById('seasonEnd').value=w.options.end;
+      document.getElementById('seasonDay1').value=w.options.day1;
+      document.getElementById('seasonDay2').value=w.options.day2;
+      document.getElementById('seasonDuration').value=w.options.duration;
+      document.getElementById('seasonPlayers').value=w.options.players;
+      document.getElementById('seasonGoal').value=w.options.goal;
+      document.getElementById('seasonCustom').value=w.options.custom?'yes':'no';
+    }
+    renderWeeklyHistory();
+  };
+
+  window.changeInfantilWeek=function(delta){
+    const input=document.getElementById('seasonWeek');
+    const n=Math.max(1,(Number(input.value)||1)+delta);
+    input.value=n;
+    const hist=weeklyHistory();
+    const found=hist.find(w=>w.weekNo===n);
+    if(found){window.__infantilWeek=found;renderWeeklyHistory();}
+    else document.getElementById('seasonSummary').innerHTML=`<div class="season-note">Semana ${n} preparada para generar. Pulsa <b>Generar semana</b>.</div>`;
+  };
+
+  window.clearInfantilWeeks=function(){
+    if(!confirm('¿Vaciar todas las semanas guardadas?'))return;
+    localStorage.removeItem(WEEK_KEY);window.__infantilWeek=null;
+    document.getElementById('seasonWeeks').innerHTML='<div class="empty">Planificación vacía.</div>';
+    document.getElementById('seasonSummary').innerHTML='';
+  };
+
+  window.printInfantilWeek=function(){
+    const hist=weeklyHistory();
+    const wn=Math.max(1,Number(document.getElementById('seasonWeek').value)||1);
+    const w=hist.find(x=>x.weekNo===wn);
+    if(!w){alert('Genera o carga una semana antes de imprimir.');return}
+    const old=window.__infantilPrintWeek;
+    window.__infantilPrintWeek=w;
+    window.print();
+    window.__infantilPrintWeek=old;
+  };
+
+  // Al entrar en la pestaña, muestra las semanas que ya estén guardadas.
+  const oldSwitch=window.switchMainTab;
+  window.switchMainTab=function(tab){
+    oldSwitch(tab);
+    if(tab==='season') renderWeeklyHistory();
+  };
+
+  document.addEventListener('DOMContentLoaded',function(){
+    const week=document.getElementById('seasonWeek');
+    if(week && !week.value)week.value='1';
+    renderWeeklyHistory();
+  });
 })();
 </script>
 </body></html>
