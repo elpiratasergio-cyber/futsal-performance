@@ -2808,18 +2808,47 @@ window.addEventListener('load',syncExercisesFromSupabase);
   const deviceKey = localStorage.getItem(FP_DEVICE_KEY) || (crypto.randomUUID ? crypto.randomUUID() : 'fp-' + Date.now() + '-' + Math.random().toString(36).slice(2));
   localStorage.setItem(FP_DEVICE_KEY, deviceKey);
 
-  function nextTrainingDate(){
-    const d=new Date();
-    const day=d.getDay();
-    const candidates=[2,4]; // martes / jueves
+  function dateToLocalISO(d){
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function nextTrainingDateFrom(lastDate){
+    if(lastDate){
+      const p=String(lastDate).split('-').map(Number);
+      if(p.length===3 && p.every(Number.isFinite)){
+        const d=new Date(p[0],p[1]-1,p[2]);
+        const day=d.getDay();
+        const delta=day===2 ? 2 : day===4 ? 5 : (()=>{let n=1;while(![2,4].includes((day+n)%7))n++;return n;})();
+        d.setDate(d.getDate()+delta);
+        return dateToLocalISO(d);
+      }
+    }
+    const d=new Date(), day=d.getDay();
     let delta=14;
-    for(const target of candidates){
+    for(const target of [2,4]){
       let x=(target-day+7)%7;
-      if(x===0) x=7;
-      if(x<delta) delta=x;
+      if(x===0)x=7;
+      if(x<delta)delta=x;
     }
     d.setDate(d.getDate()+delta);
-    return d.toISOString().slice(0,10);
+    return dateToLocalISO(d);
+  }
+
+  function getOrderedHistory(items){
+    return [...(items||[])].sort((a,b)=>{
+      const da=String(a.session_date||''), db=String(b.session_date||'');
+      if(da!==db)return da.localeCompare(db);
+      return String(a.created_at||'').localeCompare(String(b.created_at||''));
+    });
+  }
+
+  function getNextSessionInfo(items){
+    const ordered=getOrderedHistory(items);
+    const last=ordered[ordered.length-1];
+    return {
+      nextNumber: last ? (Number(last.session_number)||ordered.length)+1 : 1,
+      nextDate: nextTrainingDateFrom(last?.session_date||null)
+    };
   }
   function isoToEs(v){
     if(!v) return '';
@@ -2856,7 +2885,7 @@ window.addEventListener('load',syncExercisesFromSupabase);
     const c=historyClient();
     if(!c) return null;
     const {data,error}=await c.from('training_sessions')
-      .select('id,name,team,session_date,duration_minutes,objective,notes,created_at,training_session_exercises(id,exercise_id,sort_order,minutes,notes)')
+      .select('id,name,session_number,team,session_date,duration_minutes,objective,notes,created_at,training_session_exercises(id,exercise_id,sort_order,minutes,notes)')
       .eq('device_key',deviceKey)
       .order('session_date',{ascending:false})
       .order('created_at',{ascending:false});
@@ -2873,7 +2902,7 @@ window.addEventListener('load',syncExercisesFromSupabase);
     const c=historyClient();
     if(!c) return null;
     const {data,error}=await c.from('training_sessions').insert({
-      name, team:'Senior', session_date:date, duration_minutes:20,
+      name, session_number:Number(nextNumber), team:'Senior', session_date:date, duration_minutes:20,
       objective:document.getElementById('goal')?.value || 'auto',
       device_key:deviceKey
     }).select('id,name,team,session_date,duration_minutes,objective,notes,created_at').single();
@@ -2906,7 +2935,7 @@ window.addEventListener('load',syncExercisesFromSupabase);
       const exercises=(s.training_session_exercises||[])
         .slice()
         .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
-      const label=s.name || `SESIÓN ${idx+1}`;
+      const label=s.name || `SESIÓN ${Number(s.session_number)||idx+1}`;
       const dateLabel=isoToEs(s.session_date||'');
       const exerciseRows=exercises.map((e,i)=>{
         const ex=EX.find(x=>Number(x.id)===Number(e.exercise_id));
@@ -2954,12 +2983,17 @@ window.addEventListener('load',syncExercisesFromSupabase);
   async function savePlan(plan){
     if(!plan?.length)return;
 
-    const date=normalizeSessionDate();
     const current=localHistory();
-    const custom=document.getElementById('sessionName')?.value.trim();
+    const info=getNextSessionInfo(current);
+    const date=info.nextDate;
+    const nextNumber=info.nextNumber;
+    const dateEl=document.getElementById('sessionDate');
+    const nameEl=document.getElementById('sessionName');
+    if(dateEl)dateEl.value=date;
+    const custom=nameEl?.value.trim();
 
     // La numeración se calcula sobre las sesiones ya existentes, en orden cronológico.
-    const nextNumber=current.length+1;
+    const nextNumber=info.nextNumber;
     const name=custom || defaultName(date,nextNumber);
     const dedupeKey=`${date}|${plan.map(x=>x.id).join(',')}`;
 
@@ -2998,7 +3032,7 @@ window.addEventListener('load',syncExercisesFromSupabase);
 
     const localId='local-'+Date.now();
     const localRow={
-      id:localId,name,team:'Senior',session_date:date,duration_minutes:20,
+      id:localId,name,session_number:nextNumber,team:'Senior',session_date:date,duration_minutes:20,
       objective:document.getElementById('goal')?.value||'auto',
       created_at:new Date().toISOString(),
       _dedupeKey:dedupeKey,
@@ -3085,24 +3119,28 @@ window.addEventListener('load',syncExercisesFromSupabase);
   window.generate20=function(){
     originalGenerate20();
     setTimeout(()=>{
-      const date=document.getElementById('sessionDate')?.value || nextTrainingDate();
+      const info=getNextSessionInfo(localHistory());
       const dateEl=document.getElementById('sessionDate');
-      if(dateEl && !dateEl.value)dateEl.value=date;
-      const hist=localHistory();
       const nameEl=document.getElementById('sessionName');
-      if(nameEl && !nameEl.value)nameEl.value=defaultName(date,hist.length+1);
+      if(dateEl)dateEl.value=info.nextDate;
+      if(nameEl)nameEl.value=defaultName(info.nextDate,info.nextNumber);
       savePlan(session||[]);
     },80);
   };
 
   function installDateHelpers(){
     const d=document.getElementById('sessionDate');
-    if(d && !d.value)d.value=nextTrainingDate();
+    const name=document.getElementById('sessionName');
+    const info=getNextSessionInfo(localHistory());
+    if(d)d.value=info.nextDate;
+    if(name && (!name.value || name.value.startsWith('SESIÓN '))){
+      name.value=defaultName(info.nextDate,info.nextNumber);
+    }
     d?.addEventListener('change',()=>{
-      const hist=localHistory();
-      const n=hist.length+1;
-      const name=document.getElementById('sessionName');
-      if(name && (!name.value || name.value.startsWith('SESIÓN '))) name.value=defaultName(d.value,n);
+      const infoNow=getNextSessionInfo(localHistory());
+      if(name && (!name.value || name.value.startsWith('SESIÓN '))){
+        name.value=defaultName(d.value,infoNow.nextNumber);
+      }
     });
   }
 
