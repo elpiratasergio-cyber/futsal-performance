@@ -4459,26 +4459,12 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     var fresh=scored.filter(function(x){return !used[uniqueKey(x.e)]});
     var candidates=(fresh.length?fresh:scored).slice(0,Math.min(8,scored.length));
     if(!candidates.length){
-      /* Si por los filtros no hay candidatos, nunca mostramos una tarea genérica.
-         Recuperamos un ejercicio real de la biblioteca y mostramos su nombre. */
-      var fallbackPool=A(window.EX||[]).filter(function(e){return e && e.name;});
-      if(fallbackPool.length){
-        var fallback=fallbackPool[Math.floor(Math.random()*fallbackPool.length)];
-        used[uniqueKey(fallback)]=true;
-        return {
-          name:fallback.name,
-          execution:fallback.execution||fallback.desc||'Realizar la tarea con las reglas indicadas.',
-          objective:fallback.objective||'Aplicación del contenido',
-          block:block,
-          sourceId:fallback.id||null
-        };
-      }
-      return {name:'Ejercicio sin nombre',execution:'Revisar la biblioteca de ejercicios.',objective:'Aplicación del contenido',block:block};
+      return {name:'Tarea contextual',execution:'Adaptar espacio, oposición y reglas al nivel del grupo.',objective:'Aplicación del objetivo semanal',block:block};
     }
     var picked=candidates[Math.floor(Math.random()*candidates.length)].e;
     used[uniqueKey(picked)]=true;
     return {
-      name:picked.name||'Ejercicio sin nombre',
+      name:picked.name||'Tarea contextual',
       execution:picked.execution||picked.desc||'Adaptar la tarea al nivel del grupo.',
       objective:picked.objective||'Aplicación del contenido',
       block:block,
@@ -4961,21 +4947,12 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     let cand=pool.map(e=>({e,s:score(e,block,p,goal,used,recent,session)})).sort((a,b)=>b.s-a.s);
     const fresh=cand.filter(x=>!used.has(keyExercise(x.e)));
     cand=fresh.length?fresh:cand;
-    if(!cand.length){
-      /* Fallback real: mostrar siempre el nombre de un ejercicio existente. */
-      const fallbackPool=pool.length?pool:allExercises();
-      if(fallbackPool.length){
-        const e=fallbackPool[Math.floor(Math.random()*fallbackPool.length)];
-        used.add(keyExercise(e));
-        return {name:e.name||'Ejercicio sin nombre',objective:e.objective||'Aplicación del contenido',execution:e.execution||e.desc||'Realizar la tarea con las reglas indicadas.',id:e.id||null,source:e};
-      }
-      return {name:'Ejercicio sin nombre',objective:'Aplicación del contenido',execution:'Revisar la biblioteca de ejercicios.',id:null};
-    }
+    if(!cand.length)return {name:'Tarea contextual',objective:'Aplicación del contenido',execution:'Adaptar espacio y reglas al nivel del grupo.',id:null};
     // Randomize among the best few so the generator is varied but coherent.
     const top=cand.slice(0,Math.min(6,cand.length));
     const e=top[Math.floor(Math.random()*top.length)].e;
     used.add(keyExercise(e));
-    return {name:e.name||'Ejercicio sin nombre',objective:e.objective||'Aplicación del contenido',execution:e.execution||e.desc||'Realizar la tarea con las reglas indicadas.',id:e.id||null,source:e};
+    return {name:e.name,objective:e.objective||'Aplicación del contenido',execution:e.execution||e.desc||'Realizar la tarea con las reglas indicadas.',id:e.id||null,source:e};
   }
 
   function recentCounts(history,excludeWeek){
