@@ -2764,8 +2764,8 @@ header .inner,.wrap{width:100%}
     <h2 style="margin-top:0">📅 Generador semanal · Infantil Fútbol Sala</h2>
     <p class="hint">Genera <b>una semana cada vez</b>, con dos sesiones y progresión durante la temporada. La estructura toma como base tu planificación del año pasado y combina ejercicios de la biblioteca evitando repeticiones cercanas.</p>
     <div class="season-grid">
-      <div><label>Inicio de temporada</label><input id="seasonStart" type="date"></div>
-      <div><label>Fin de temporada</label><input id="seasonEnd" type="date"></div>
+      <div style="display:none"><label>Inicio de temporada</label><input id="seasonStart" type="date" value="2026-08-25"></div>
+      <div style="display:none"><label>Fin de temporada</label><input id="seasonEnd" type="date" value="2027-05-30"></div>
       <div><label>Semana a generar</label><input id="seasonWeek" type="number" min="1" value="1"></div>
       <div><label>Primer día de entrenamiento</label><select id="seasonDay1"><option value="2">Martes</option><option value="1">Lunes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option></select></div>
       <div><label>Segundo día</label><select id="seasonDay2"><option value="5" selected>Viernes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="6">Sábado</option></select></div>
@@ -3612,6 +3612,7 @@ window.addEventListener('load',()=>{
 <script>
 (function(){
   const KEY='futuroCarmonense_infantilSeason_v1';
+  function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
   const dayNames=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const fallback={
     minigame:[
@@ -3753,10 +3754,22 @@ window.addEventListener('load',()=>{
   }
 
   window.getSeasonOptions=function(){
-    const start=document.getElementById('seasonStart').value;
-    const end=document.getElementById('seasonEnd').value;
-    if(!start||!end||start>end) throw new Error('Revisa las fechas de inicio y fin.');
-    return {start,end,day1:Number(document.getElementById('seasonDay1').value),day2:Number(document.getElementById('seasonDay2').value),duration:Number(document.getElementById('seasonDuration').value),players:Number(document.getElementById('seasonPlayers').value),goal:document.getElementById('seasonGoal').value,custom:document.getElementById('seasonCustom').value==='yes'};
+    // Temporada fija del Infantil: martes 25/08/2026 hasta domingo 30/05/2027.
+    const start='2026-08-25';
+    const end='2027-05-30';
+    const startEl=document.getElementById('seasonStart');
+    const endEl=document.getElementById('seasonEnd');
+    if(startEl) startEl.value=start;
+    if(endEl) endEl.value=end;
+    return {
+      start,end,
+      day1:Number(document.getElementById('seasonDay1').value),
+      day2:Number(document.getElementById('seasonDay2').value),
+      duration:Number(document.getElementById('seasonDuration').value),
+      players:Number(document.getElementById('seasonPlayers').value),
+      goal:document.getElementById('seasonGoal').value,
+      custom:document.getElementById('seasonCustom').value==='yes'
+    };
   }
 
   window.switchMainTab=function(tab){
