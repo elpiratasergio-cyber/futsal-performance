@@ -3610,7 +3610,9 @@ window.addEventListener('load',()=>{
 </script>
 
 <script>
+// Helpers globales compartidos por TODOS los bloques del planificador.
 window.FCAddDays=function(d,n){const x=new Date(d);x.setDate(x.getDate()+Number(n||0));return x};
+window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().replace(/\s+/g,' ').trim()};
 </script>
 
 <script>
@@ -3699,7 +3701,6 @@ window.FCAddDays=function(d,n){const x=new Date(d);x.setDate(x.getDate()+Number(
   function monday(d){const x=new Date(d);const day=x.getDay();const diff=(day===0?-6:1-day);return window.FCAddDays(x,diff)}
   function clamp(arr){return arr.length?arr[Math.floor(Math.random()*arr.length)]:null}
   function shuffle(a){return [...a].sort(()=>Math.random()-.5)}
-  function uniqueKey(x){return (x.name||'').toLowerCase().replace(/\s+/g,' ').trim()}
 
   function classifyEX(block, allowCustom){
     if(typeof EX==='undefined') return [];
@@ -3719,11 +3720,11 @@ window.FCAddDays=function(d,n){const x=new Date(d);x.setDate(x.getDate()+Number(
 
   function pick(block, week, session, used, allowCustom){
     let pool=[...classifyEX(block,allowCustom),...(fallback[block]||[]).map(a=>({name:a[0],desc:a[1],objective:a[2]}))];
-    const seen=new Set(); pool=pool.filter(x=>{const k=uniqueKey(x);if(seen.has(k))return false;seen.add(k);return true});
+    const seen=new Set(); pool=pool.filter(x=>{const k=window.FCUniqueKey(x);if(seen.has(k))return false;seen.add(k);return true});
     // Penalizamos ejercicios usados recientemente; si no queda ninguno, reiniciamos el ciclo.
-    const fresh=pool.filter(x=>!used.has(uniqueKey(x)));
+    const fresh=pool.filter(x=>!used.has(window.FCUniqueKey(x)));
     const chosen=clamp(fresh.length?fresh:pool) || {name:'Tarea contextual',desc:'Adaptar el espacio y la oposición al nivel del grupo.',objective:'Aplicación del objetivo de la semana'};
-    used.add(uniqueKey(chosen));
+    used.add(window.FCUniqueKey(chosen));
     return chosen;
   }
 
@@ -3922,14 +3923,14 @@ window.FCAddDays=function(d,n){const x=new Date(d);x.setDate(x.getDate()+Number(
     const fb=window.FCInfantilFallback||{};
     pool=[...pool,...((fb[block])||[]).map(a=>({name:a[0],execution:a[1],objective:a[2]}))];
     const unique=[];const seen=new Set();
-    pool.forEach(e=>{const k=uniqueKey(e);if(k&&!seen.has(k)){seen.add(k);unique.push(e)}});
-    const fresh=unique.filter(e=>!used.has(uniqueKey(e)));
+    pool.forEach(e=>{const k=window.FCUniqueKey(e);if(k&&!seen.has(k)){seen.add(k);unique.push(e)}});
+    const fresh=unique.filter(e=>!used.has(window.FCUniqueKey(e)));
     const source=fresh.length?fresh:unique;
     if(!source.length)return {name:'Tarea contextual',execution:'Adaptar el espacio, la oposición y las reglas al nivel del grupo.',objective:'Aplicación del objetivo semanal'};
     const ranked=source.map(e=>({e,s:scoreExercise(e,block,phase,goal,sessionIndex)})).sort((a,b)=>b.s-a.s);
     const top=ranked.slice(0,Math.min(6,ranked.length));
     const chosen=top[Math.floor(Math.random()*top.length)].e;
-    used.add(uniqueKey(chosen));
+    used.add(window.FCUniqueKey(chosen));
     return {name:chosen.name,execution:chosen.execution||chosen.desc||'',objective:chosen.objective||'Aplicación del contenido',sourceId:chosen.id||null};
   }
 
@@ -4018,7 +4019,7 @@ window.FCAddDays=function(d,n){const x=new Date(d);x.setDate(x.getDate()+Number(
       if(!dates.length) throw new Error('Esa semana no contiene días de entrenamiento dentro del periodo elegido.');
       const history=weeklyHistory();
       const used=new Set();
-      history.forEach(w=>w.sessions.forEach(s=>s.rows.slice(1).forEach(r=>{if(r.name)used.add(uniqueKey(r));})));
+      history.forEach(w=>w.sessions.forEach(s=>s.rows.slice(1).forEach(r=>{if(r.name)used.add(window.FCUniqueKey(r));})));
       const {phase,focus}=phaseFocus(wn,total,opts.goal);
       const sessions=dates.map((d,i)=>makeWeeklySession(d,wn,total,i,opts,used));
       const week={weekNo:wn,phase,focus,createdAt:new Date().toISOString(),options:opts,sessions};
