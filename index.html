@@ -454,6 +454,51 @@ header .inner,.wrap{width:100%}
 })();
 </script>
 
+
+<style>
+/* ===== TEMPORADA INFANTIL: tarjetas más limpias ===== */
+.fc-infantil-day-header{
+  font-size:clamp(24px,4vw,36px)!important;
+  font-weight:950!important;
+  letter-spacing:.3px!important;
+  padding:16px 20px!important;
+  margin:18px 0 12px!important;
+  border-radius:16px!important;
+  background:#174b3a!important;
+  color:#fff!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  min-height:64px!important;
+  box-shadow:0 4px 12px rgba(0,0,0,.10)!important;
+}
+.fc-infantil-day-header .day-date{
+  font-size:.52em!important;
+  font-weight:700!important;
+  opacity:.9!important;
+}
+.fc-infantil-exercise-details{
+  margin-top:7px!important;
+  padding:8px 0 0!important;
+  border-top:1px solid #e5ebe8!important;
+}
+.fc-infantil-exercise-details summary{
+  cursor:pointer!important;
+  color:#174b3a!important;
+  font-weight:800!important;
+  font-size:13px!important;
+}
+.fc-infantil-objective{
+  display:block!important;
+  margin-top:7px!important;
+  padding:8px 10px!important;
+  border-radius:10px!important;
+  background:#f1f6f3!important;
+  color:#315a4b!important;
+  font-size:13px!important;
+}
+</style>
+
 </head><body>
 <header>
   <div class="inner">
@@ -4792,5 +4837,107 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
   });
 })();
 </script>
+
+<script>
+(function(){
+  function cleanInfantilCards(){
+    const body=(document.body.innerText||'').toLowerCase();
+    if(!body.includes('temporada infantil') && !body.includes('generar semana')) return;
+
+    // Candidate session/day containers.
+    const daySelectors=[
+      '.session-card','.session','.day-session','.training-session',
+      '.sesion','.session-block','[data-session]'
+    ];
+    const days=[];
+    daySelectors.forEach(sel=>{
+      document.querySelectorAll(sel).forEach(el=>{
+        if(!days.includes(el)) days.push(el);
+      });
+    });
+
+    days.forEach(day=>{
+      const text=(day.innerText||'').toLowerCase();
+      const isTue=/\bmartes\b/.test(text);
+      const isFri=/\bviernes\b/.test(text);
+      if(!isTue && !isFri) return;
+
+      // Strong, large day header.
+      let header=day.querySelector('.fc-infantil-day-header');
+      if(!header){
+        header=document.createElement('div');
+        header.className='fc-infantil-day-header';
+        day.insertBefore(header,day.firstChild);
+      }
+
+      const match=isTue ? text.match(/martes[^\n]*/) : text.match(/viernes[^\n]*/);
+      let date='';
+      if(match){
+        const m=match[0].replace(/\s+/g,' ').trim();
+        date=m.replace(/^(martes|viernes)\s*/i,'').trim();
+      }
+      header.innerHTML='<span>'+(isTue?'MARTES':'VIERNES')+'</span>'+
+        (date?'<span class="day-date">'+date+'</span>':'');
+
+      // Exercise cards: only the exercise name remains visible.
+      const cards=Array.from(day.querySelectorAll(
+        '.exercise-card,.exercise-item,.task-card,.session-exercise,.exercise,[data-exercise]'
+      ));
+
+      cards.forEach(card=>{
+        if(card.classList.contains('fc-infantil-final-match')) return;
+
+        // Find objective text in common labels.
+        const all=Array.from(card.querySelectorAll('*'));
+        let objectiveEl=all.find(el=>{
+          const t=(el.textContent||'').trim().toLowerCase();
+          return /^objetivo\s*:/.test(t) || /^objetivo$/.test(t);
+        });
+
+        // Don't hide the exercise title itself.
+        const title=card.querySelector('h2,h3,h4,.exercise-title,.task-title,.title');
+        if(!title) return;
+
+        // Hide visible metadata/objective, then put it into a details drawer.
+        const meta=all.filter(el=>{
+          if(el===title) return false;
+          const t=(el.textContent||'').trim();
+          return t && (/^objetivo\s*:/i.test(t) || /^tipo\s*:/i.test(t) ||
+                       /^intensidad\s*:/i.test(t) || /^jugadores\s*:/i.test(t) ||
+                       /^dosis\s*:/i.test(t));
+        });
+
+        if(meta.length){
+          let details=card.querySelector('.fc-infantil-exercise-details');
+          if(!details){
+            details=document.createElement('details');
+            details.className='fc-infantil-exercise-details';
+            details.innerHTML='<summary>Ver detalles</summary><div class="fc-infantil-objective"></div>';
+            card.appendChild(details);
+          }
+          const target=details.querySelector('.fc-infantil-objective');
+          const unique=[];
+          meta.forEach(el=>{
+            const t=(el.textContent||'').trim();
+            if(t && !unique.includes(t)) unique.push(t);
+            el.style.display='none';
+          });
+          if(objectiveEl){
+            const t=(objectiveEl.textContent||'').trim();
+            if(t && !unique.includes(t)) unique.unshift(t);
+          }
+          target.textContent=unique.join(' · ');
+        }
+      });
+    });
+  }
+
+  const observer=new MutationObserver(()=>setTimeout(cleanInfantilCards,80));
+  observer.observe(document.body,{childList:true,subtree:true});
+  document.addEventListener('click',()=>setTimeout(cleanInfantilCards,100));
+  setTimeout(cleanInfantilCards,500);
+})();
+</script>
+
 </body>
 </html>
