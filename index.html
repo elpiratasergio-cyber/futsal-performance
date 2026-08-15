@@ -2845,9 +2845,17 @@ window.addEventListener('load',syncExercisesFromSupabase);
   function getNextSessionInfo(items){
     const ordered=getOrderedHistory(items);
     const last=ordered[ordered.length-1];
+    if(!last) return {nextNumber:1,nextDate:nextTrainingDateFrom(null)};
+
+    const numbers=ordered.map((s,i)=>{
+      const m=String(s.name||'').match(/SESI[ÓO]N\s+(\d+)/i);
+      return m ? Number(m[1]) : (Number(s.session_number)||i+1);
+    }).filter(n=>Number.isFinite(n));
+
+    const nextNumber=(numbers.length ? Math.max(...numbers) : ordered.length)+1;
     return {
-      nextNumber: last ? (Number(last.session_number)||ordered.length)+1 : 1,
-      nextDate: nextTrainingDateFrom(last?.session_date||null)
+      nextNumber,
+      nextDate:nextTrainingDateFrom(last.session_date||null)
     };
   }
   function isoToEs(v){
@@ -2885,7 +2893,7 @@ window.addEventListener('load',syncExercisesFromSupabase);
     const c=historyClient();
     if(!c) return null;
     const {data,error}=await c.from('training_sessions')
-      .select('id,name,session_number,team,session_date,duration_minutes,objective,notes,created_at,training_session_exercises(id,exercise_id,sort_order,minutes,notes)')
+      .select('id,name,team,session_date,duration_minutes,objective,notes,created_at,training_session_exercises(id,exercise_id,sort_order,minutes,notes)')
       .eq('device_key',deviceKey)
       .order('session_date',{ascending:false})
       .order('created_at',{ascending:false});
@@ -2902,7 +2910,7 @@ window.addEventListener('load',syncExercisesFromSupabase);
     const c=historyClient();
     if(!c) return null;
     const {data,error}=await c.from('training_sessions').insert({
-      name, session_number:Number(nextNumber), team:'Senior', session_date:date, duration_minutes:20,
+      name, team:'Senior', session_date:date, duration_minutes:20,
       objective:document.getElementById('goal')?.value || 'auto',
       device_key:deviceKey
     }).select('id,name,team,session_date,duration_minutes,objective,notes,created_at').single();
@@ -2990,11 +2998,8 @@ window.addEventListener('load',syncExercisesFromSupabase);
     const dateEl=document.getElementById('sessionDate');
     const nameEl=document.getElementById('sessionName');
     if(dateEl)dateEl.value=date;
-    const custom=nameEl?.value.trim();
-
-    // La numeración se calcula sobre las sesiones ya existentes, en orden cronológico.
-    const nextNumber=info.nextNumber;
-    const name=custom || defaultName(date,nextNumber);
+    // El nombre se actualiza automáticamente con el número y la fecha siguientes.
+    const name=defaultName(date,nextNumber);
     const dedupeKey=`${date}|${plan.map(x=>x.id).join(',')}`;
 
     // Si esta misma sesión ya existe, no insertamos otra.
@@ -3133,7 +3138,7 @@ window.addEventListener('load',syncExercisesFromSupabase);
     const name=document.getElementById('sessionName');
     const info=getNextSessionInfo(localHistory());
     if(d)d.value=info.nextDate;
-    if(name && (!name.value || name.value.startsWith('SESIÓN '))){
+    if(name){
       name.value=defaultName(info.nextDate,info.nextNumber);
     }
     d?.addEventListener('change',()=>{
