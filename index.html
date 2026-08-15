@@ -4542,7 +4542,8 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     var pos=choose('possession',phase,opts.goal,used,recentFamilies,sessionIndex);
     var tech=choose('technical',phase,opts.goal,used,recentFamilies,sessionIndex);
     var fin=choose('finishing',phase,opts.goal,used,recentFamilies,sessionIndex);
-    var match=choose('match',phase,opts.goal,used,recentFamilies,sessionIndex);
+    // El último bloque NO es un ejercicio de la biblioteca: es siempre partido.
+    // No se genera ni se puede sustituir por otra tarea.
     var duration=90;
     var matchTime=30;
     var rows=[
@@ -4551,7 +4552,7 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
       {block:'possession',time:'15 min',exercise:pos,name:pos.name,desc:pos.execution,objective:pos.objective},
       {block:'technical',time:'15 min',exercise:tech,name:tech.name,desc:tech.execution,objective:tech.objective},
       {block:'finishing',time:'15 min',exercise:fin,name:fin.name,desc:fin.execution,objective:fin.objective},
-      {block:'match',time:String(matchTime)+' min',exercise:match,name:match.name,desc:match.execution,objective:match.objective}
+      {block:'match',time:"30 min",exercise:null,name:'PARTIDO',desc:'Partido final de la sesión. Aplicar el contenido trabajado durante la sesión, preferentemente con una condición relacionada con el objetivo de la semana.',objective:'Transferir lo trabajado al juego real y favorecer la toma de decisiones'}
     ];
     return {date:date,dateLabel:dateLabel(date),day:sessionIndex===0?'Martes':'Viernes',phase:phase,focus:focus,sessionIndex:sessionIndex,rows:rows};
   }
@@ -4573,7 +4574,7 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
           s.rows.map(function(r,ri){
             var canChange=ri>0 && ri<5 && r.exercise;
             var changeBtn=canChange?'<button class="week-exchange" onclick="replaceInfantilExercise('+w.weekNo+','+si+','+ri+');event.stopPropagation()">🔄 Cambiar ejercicio</button>':'';
-            return '<div class="session-block">'+
+            return '<div class="session-block '+(r.block==='match'?'fc-infantil-final-match':'')+'">'+
               '<div class="session-block-title"><strong>'+escapeHtml(r.name)+'</strong><span class="time">'+escapeHtml(r.time)+'</span></div>'+
               '<div class="week-ex-desc"><b>Objetivo:</b> '+escapeHtml(r.objective)+'<br>'+escapeHtml(r.desc)+'</div>'+
               changeBtn+
