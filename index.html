@@ -272,7 +272,28 @@ header .inner,.wrap{width:100%}
   .session-block-title{flex-direction:column}
   .session-block-title .time{order:-1}
 }
-</style></head><body>
+</style>
+<style>
+/* Esquema visual de tareas infantiles */
+.fc-task-visual{
+  margin-top:12px;padding:10px;border:1px solid #dfe7e3;border-radius:14px;
+  background:#f8fbfa;
+}
+.fc-task-visual summary{
+  cursor:pointer;font-weight:800;color:#174b3a;padding:4px;
+}
+.fc-task-visual svg{display:block;width:100%;height:auto;max-height:300px}
+.fc-phase{
+  display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border-radius:999px;
+  background:#eaf4ef;color:#174b3a;font-weight:800;font-size:12px;margin:4px 0 10px;
+}
+.fc-history-week{
+  border:1px solid #e2e8e5;border-radius:14px;margin:8px 0;overflow:hidden;background:#fff;
+}
+.fc-history-week>summary{padding:12px 14px;cursor:pointer;font-weight:900}
+</style>
+
+</head><body>
 <header>
   <div class="inner">
     <div class="club-brand">
@@ -4064,4 +4085,208 @@ window.addEventListener('load',()=>{
   });
 })();
 </script>
+
+<script>
+/* ===== PLANIFICADOR INFANTIL INTELIGENTE ===== */
+(function(){
+  const KEY='fc_infantil_weeks_v2';
+
+  function loadWeeks(){
+    try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return []}
+  }
+  function saveWeeks(v){localStorage.setItem(KEY,JSON.stringify(v))}
+  function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+  function exerciseKey(e){
+    return String(e?.id||e?.name||e?.title||'').trim();
+  }
+
+  // Content families used to diversify successive weeks.
+  const families=[
+    ['posesion','rondo','circulacion','apoyos'],
+    ['finalizacion','tiro','remate','pared'],
+    ['1x1','duelo','regate','desborde'],
+    ['superioridad','2x1','3x2','inferioridad'],
+    ['transicion','repliegue','contraataque','perdida'],
+    ['defensa','marcaje','cobertura','presion'],
+    ['salida','presion','inicio','construccion'],
+    ['velocidad','cambio de direccion','aceleracion','reaccion']
+  ];
+
+  function familyOf(e){
+    const t=norm([e?.name,e?.title,e?.objective,e?.type,e?.category,e?.execution].join(' '));
+    for(let i=0;i<families.length;i++){
+      if(families[i].some(k=>t.includes(k))) return i;
+    }
+    return -1;
+  }
+
+  function recentData(){
+    const weeks=loadWeeks();
+    const recent=weeks.slice(-5);
+    const used=new Set();
+    const recentFamilies=new Map();
+    recent.forEach(w=>{
+      (w.sessions||[]).forEach(s=>{
+        (s.exercises||[]).forEach(e=>{
+          const k=exerciseKey(e);
+          if(k)used.add(k);
+          const f=familyOf(e);
+          if(f>=0)recentFamilies.set(f,(recentFamilies.get(f)||0)+1);
+        });
+      });
+    });
+    return {used,recentFamilies};
+  }
+
+  function scoreExercise(e, targetFamily, data, index){
+    const k=exerciseKey(e);
+    let score=Math.random()*3;
+    if(data.used.has(k)) score-=100;
+    const f=familyOf(e);
+    if(f===targetFamily) score+=18;
+    if(f>=0) score-=(data.recentFamilies.get(f)||0)*5;
+    // Prefer a little variation between consecutive exercises.
+    if(index>0 && f===targetFamily) score-=2;
+    return score;
+  }
+
+  function pickDiverse(pool,count,targetFamilies=[]){
+    const data=recentData();
+    const candidates=[...(pool||[])];
+    const chosen=[];
+    const local=new Set();
+
+    for(let i=0;i<count && candidates.length;i++){
+      const target=targetFamilies[i%Math.max(1,targetFamilies.length)] ?? -1;
+      const ranked=candidates
+        .filter(e=>!local.has(exerciseKey(e)))
+        .map(e=>({e,s:scoreExercise(e,target,data,i)}))
+        .sort((a,b)=>b.s-a.s);
+
+      if(!ranked.length)break;
+      const pick=ranked[0].e;
+      chosen.push(pick);
+      local.add(exerciseKey(pick));
+    }
+    return chosen;
+  }
+
+  // Expose the planner for the existing generator.
+  window.FCInfantilPlanner={
+    loadWeeks,
+    saveWeeks,
+    recentData,
+    familyOf,
+    pickDiverse,
+
+    registerWeek(week){
+      const weeks=loadWeeks().filter(w=>Number(w.week)!==Number(week.week));
+      weeks.push(week);
+      weeks.sort((a,b)=>Number(a.week)-Number(b.week));
+      saveWeeks(weeks);
+      return weeks;
+    },
+
+    getProgression(weekNumber){
+      const n=Math.max(1,Number(weekNumber)||1);
+      if(n<=4)return {phase:'Adaptación y fundamentos',focus:['conducción','control','pase','rondo']};
+      if(n<=8)return {phase:'Construcción técnica',focus:['pase','control orientado','finalización','1x1']};
+      if(n<=14)return {phase:'Comprensión táctica',focus:['apoyos','amplitud','superioridad','defensa']};
+      if(n<=22)return {phase:'Transiciones y toma de decisiones',focus:['transición','repliegue','presión','contraataque']};
+      return {phase:'Consolidación y competición',focus:['toma de decisiones','transición','finalización','juego real']};
+    }
+  };
+})();
+</script>
+
+
+<script>
+(function(){
+  function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function visualSVG(ex){
+    const t=String([ex?.name,ex?.objective,ex?.execution,ex?.type,ex?.category].join(' ')).toLowerCase();
+    const individual=/sentadilla|plancha|gemelo|nordic|split squat|pogo|salto|sprint|frenada|movilidad/.test(t);
+    if(individual){
+      return `<svg viewBox="0 0 640 250" aria-label="Esquema del ejercicio">
+        <rect x="0" y="0" width="640" height="250" rx="14" fill="#fff"/>
+        <line x1="110" y1="195" x2="530" y2="195" stroke="#333" stroke-width="4"/>
+        <circle cx="250" cy="82" r="18" fill="#174b3a"/>
+        <line x1="250" y1="100" x2="250" y2="145" stroke="#174b3a" stroke-width="9" stroke-linecap="round"/>
+        <line x1="250" y1="112" x2="218" y2="132" stroke="#174b3a" stroke-width="8" stroke-linecap="round"/>
+        <line x1="250" y1="112" x2="282" y2="132" stroke="#174b3a" stroke-width="8" stroke-linecap="round"/>
+        <line x1="250" y1="145" x2="220" y2="188" stroke="#174b3a" stroke-width="9" stroke-linecap="round"/>
+        <line x1="250" y1="145" x2="282" y2="188" stroke="#174b3a" stroke-width="9" stroke-linecap="round"/>
+        <path d="M335 175 C370 135 410 135 445 175" fill="none" stroke="#111" stroke-width="6" marker-end="url(#a)"/>
+        <defs><marker id="a" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#111"/></marker></defs>
+        <text x="320" y="70" font-size="18" font-weight="700">Movimiento / postura</text>
+      </svg>`;
+    }
+    const two=/1x1|2x1|3x2|2x2|3x3|oposicion|defensor|defensa/.test(t);
+    const pass=/pase|pared|circulacion|rondo|posesion/.test(t);
+    const finish=/final|tiro|remate|porter/.test(t);
+    const dots=two
+      ? `<circle cx="205" cy="125" r="12" fill="#2474c6"/><circle cx="290" cy="105" r="12" fill="#2474c6"/><circle cx="370" cy="125" r="12" fill="#d83b3b"/>`
+      : `<circle cx="205" cy="125" r="12" fill="#2474c6"/><circle cx="290" cy="105" r="12" fill="#2474c6"/><circle cx="375" cy="105" r="12" fill="#2474c6"/><circle cx="330" cy="145" r="12" fill="#d83b3b"/>`;
+    const goal=finish?`<rect x="505" y="82" width="18" height="86" fill="none" stroke="#222" stroke-width="4"/>`:'';
+    const arrows=pass
+      ? `<path d="M218 125 L278 108" stroke="#111" stroke-width="4" stroke-dasharray="8 7" marker-end="url(#b)"/>
+         <path d="M303 105 L362 105" stroke="#111" stroke-width="4" stroke-dasharray="8 7" marker-end="url(#b)"/>`
+      : `<path d="M220 125 C280 165 340 155 420 120" fill="none" stroke="#111" stroke-width="6" marker-end="url(#b)"/>`;
+    return `<svg viewBox="0 0 640 250" aria-label="Esquema de fútbol sala">
+      <defs><marker id="b" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 z" fill="#111"/></marker></defs>
+      <rect x="20" y="25" width="600" height="200" rx="8" fill="#eef7f1" stroke="#174b3a" stroke-width="4"/>
+      <line x1="320" y1="25" x2="320" y2="225" stroke="#174b3a" stroke-width="2"/>
+      <circle cx="320" cy="125" r="34" fill="none" stroke="#174b3a" stroke-width="2"/>
+      <rect x="20" y="82" width="55" height="86" fill="none" stroke="#174b3a" stroke-width="2"/>
+      <rect x="565" y="82" width="55" height="86" fill="none" stroke="#174b3a" stroke-width="2"/>
+      ${goal}${dots}${arrows}
+      <circle cx="255" cy="125" r="7" fill="#111"/>
+      <text x="35" y="48" font-size="14" font-weight="700">INICIO</text>
+      <text x="505" y="48" font-size="14" font-weight="700">${finish?'FINALIZACIÓN':'TAREA'}</text>
+    </svg>`;
+  }
+
+  window.FCInfantilVisual={svg:visualSVG};
+
+  // Add a visual drawer to session exercise cards when the existing page
+  // exposes a recognizable exercise container.
+  function decorate(){
+    document.querySelectorAll('[data-exercise], .exercise-card, .exercise-item, .session-exercise').forEach(el=>{
+      if(el.querySelector('.fc-task-visual'))return;
+      const raw=el.dataset.exercise;
+      let ex=null;
+      if(raw){try{ex=JSON.parse(raw)}catch(e){}}
+      if(!ex)return;
+      const d=document.createElement('details');
+      d.className='fc-task-visual';
+      d.innerHTML='<summary>👁️ Ver esquema visual</summary>'+visualSVG(ex);
+      el.appendChild(d);
+    });
+  }
+  new MutationObserver(decorate).observe(document.body,{childList:true,subtree:true});
+  setTimeout(decorate,500);
+})();
+</script>
+
+
+<script>
+(function(){
+  function refreshPhase(){
+    const input=document.querySelector('#weekNumber, [name="weekNumber"], input[id*="week"]');
+    if(!input || !window.FCInfantilPlanner)return;
+    const n=Number(input.value)||1;
+    const p=FCInfantilPlanner.getProgression(n);
+    let box=document.getElementById('fcPhaseBox');
+    if(!box){
+      box=document.createElement('div'); box.id='fcPhaseBox'; box.className='fc-phase';
+      input.parentElement?.appendChild(box);
+    }
+    box.textContent='📈 '+p.phase;
+  }
+  document.addEventListener('input',refreshPhase);
+  document.addEventListener('change',refreshPhase);
+  setTimeout(refreshPhase,600);
+})();
+</script>
+
 </body></html>
