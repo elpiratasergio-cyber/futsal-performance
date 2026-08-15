@@ -3752,7 +3752,7 @@ window.addEventListener('load',()=>{
     return {date:iso(date),dateLabel:formatDate(iso(date)),phase,dayBias,rows,focus:phase};
   }
 
-  function getSeasonOptions(){
+  window.getSeasonOptions=function(){
     const start=document.getElementById('seasonStart').value;
     const end=document.getElementById('seasonEnd').value;
     if(!start||!end||start>end) throw new Error('Revisa las fechas de inicio y fin.');
@@ -3770,7 +3770,7 @@ window.addEventListener('load',()=>{
 
   window.generateInfantilSeason=function(){
     try{
-      const opts=getSeasonOptions();
+      const opts=window.getSeasonOptions();
       const start=new Date(opts.start+'T12:00:00'), end=new Date(opts.end+'T12:00:00');
       const dates=[]; let cursor=new Date(start);
       while(cursor<=end){
@@ -3992,7 +3992,7 @@ window.addEventListener('load',()=>{
 
   window.generateInfantilWeek=function(){
     try{
-      const opts=getSeasonOptions();
+      const opts=window.getSeasonOptions();
       const wn=Math.max(1,Number(document.getElementById('seasonWeek').value)||1);
       const total=weekTotal(opts.start,opts.end);
       const dates=weekDates(opts,wn);
