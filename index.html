@@ -2970,7 +2970,7 @@ function renderDbCards(){
     const videoHtml=video?`<a class="yt-btn" href="${escHTML(video)}" target="_blank" rel="noopener noreferrer">${x.youtube?'▶ Ver técnica en YouTube':'🔎 Buscar técnica en YouTube'}</a>`:'';
     return `<article class="card" data-id="${x.id}" data-search="${escHTML([x.name,x.cat,x.type,x.ball,x.intensity,x.players,x.dose,x.objective,x.execution,x.material,x.mode].join(' ').toLowerCase())}">
       <div class="top"><span class="num">${x.custom?'📸':'#'+String(x.id).padStart(3,'0')}</span><span class="tag ${x.custom?'custom-label':''}">${escHTML(x.cat)}</span><span class="tag alt">${escHTML(x.ball)}</span><span class="tag mode">${escHTML(x.mode)}</span></div>
-      <h3>${escHTML(x.name)}</h3>${x.custom?`<img class="custom-photo" src="${x.photo}" alt="${escHTML(x.name)}">`:''}<p class="objective"><b>Objetivo:</b> ${escHTML(x.objective)}</p>
+      <h3>${escHTML(x.name)}</h3><p class="objective"><b>Objetivo:</b> ${escHTML(x.objective)}</p>
       <div class="chips"><span><b>Tipo</b>${escHTML(x.type)}</span><span><b>Intensidad</b>${escHTML(x.intensity)}</span><span><b>Jugadores</b>${escHTML(x.players)}</span><span><b>Dosis</b>${escHTML(x.dose)}</span></div>
       <details><summary>${x.custom?'Ver foto + detalles':'Ver esquema visual + detalles'}</summary>
         <div class="scheme-wrap">${x.custom?customVisual(x):renderExerciseDiagram(x)}</div>
