@@ -337,6 +337,73 @@ header .inner,.wrap{width:100%}
   .week-exchange{width:100%;justify-content:center}
 }
 </style>
+
+<style>
+/* Últimos 30' de Infantil: siempre PARTIDO */
+.fc-infantil-match-block{
+  border:2px solid #174b3a;
+  border-radius:14px;
+  padding:14px;
+  margin-top:12px;
+  background:#f7fbf8;
+}
+.fc-infantil-match-block .match-title{
+  font-weight:900;
+  font-size:18px;
+  margin-bottom:5px;
+}
+.fc-infantil-match-block .match-subtitle{
+  opacity:.8;
+  font-size:13px;
+}
+.fc-infantil-match-block .change-exercise,
+.fc-infantil-match-block [data-action="change-exercise"]{
+  display:none !important;
+}
+</style>
+<script>
+(function(){
+  function forceInfantilMatch(){
+    // Only touch the season/Infantil area, never the 20' generator.
+    const roots = Array.from(document.querySelectorAll(
+      '#temporada, #season, [data-tab="temporada"], .season-panel, .infantil-panel'
+    ));
+    const candidates = roots.length
+      ? roots.flatMap(r => Array.from(r.querySelectorAll('*')))
+      : [];
+
+    candidates.forEach(el => {
+      const txt = (el.textContent || '').trim().toLowerCase();
+      if (!/^30\\s*[’']?\\s*(min|mins|minutos)?\\b/.test(txt)) return;
+      if (!txt.includes('partido')) return;
+
+      const block = el.closest('.exercise-card, .exercise-item, .session-block, .task-card, .card') || el;
+      if (!block.classList.contains('fc-infantil-match-block')){
+        block.classList.add('fc-infantil-match-block');
+      }
+
+      if (!block.querySelector('.match-title')){
+        const title = document.createElement('div');
+        title.className = 'match-title';
+        title.textContent = "30' · PARTIDO";
+        const sub = document.createElement('div');
+        sub.className = 'match-subtitle';
+        sub.textContent = 'Partido libre o condicionado según el objetivo de la semana.';
+        block.insertBefore(title, block.firstChild);
+        block.insertBefore(sub, title.nextSibling);
+      }
+
+      block.querySelectorAll('.change-exercise,[data-action="change-exercise"]').forEach(b => b.remove());
+    });
+  }
+
+  const obs = new MutationObserver(forceInfantilMatch);
+  obs.observe(document.body, {childList:true, subtree:true});
+  document.addEventListener('click', () => setTimeout(forceInfantilMatch, 50));
+  setTimeout(forceInfantilMatch, 300);
+})();
+</script>
+
 </head><body>
 <header>
   <div class="inner">
