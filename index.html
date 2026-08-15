@@ -265,6 +265,8 @@ header .inner,.wrap{width:100%}
 .session-block-title .time{font-weight:900;white-space:nowrap;color:#0f766e}
 .week-visual{display:none;margin:10px 0 4px}
 .week-visual.show{display:block}
+/* En la temporada infantil el esquema se abre con <details>; al abrirlo debe mostrarse aunque no tenga la clase .show. */
+.week-visual-details[open] .week-visual{display:block !important;}
 .week-visual .scheme-wrap{margin:0}
 .week-ex-desc{color:#52645c;font-size:13px;line-height:1.45;margin:6px 0 0}
 @media(max-width:600px){
@@ -305,7 +307,8 @@ header .inner,.wrap{width:100%}
 .week-visual-details{margin-top:10px;border:1px solid #dfe9e4;border-radius:12px;background:#f8fbfa;overflow:hidden;}
 .week-visual-details>summary{cursor:pointer;padding:9px 12px;font-weight:800;color:#166b55;}
 .week-visual{padding:8px 10px 12px;}
-.week-visual svg{width:100%;height:auto;display:block;}
+.week-visual svg{width:100%;height:auto;display:block;min-height:220px;}
+.week-visual-details summary{user-select:none;}
 .scheme-key{display:flex;gap:14px;flex-wrap:wrap;margin:7px 0 0;font-size:12px;color:#52645d;}
 </style>
 
