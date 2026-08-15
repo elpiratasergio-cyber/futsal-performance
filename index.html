@@ -3610,9 +3610,13 @@ window.addEventListener('load',()=>{
 </script>
 
 <script>
+window.FCAddDays=function(d,n){const x=new Date(d);x.setDate(x.getDate()+Number(n||0));return x};
+</script>
+
+<script>
 (function(){
   const KEY='futuroCarmonense_infantilSeason_v1';
-  function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
+  function addDays(d,n){return window.FCAddDays(d,n)}
   const dayNames=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const fallback={
     minigame:[
@@ -3690,8 +3694,8 @@ window.addEventListener('load',()=>{
   function pad(n){return String(n).padStart(2,'0')}
   function iso(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
   function formatDate(v){const d=new Date(v+'T12:00:00');return d.toLocaleDateString('es-ES',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})}
-  function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
-  function monday(d){const x=new Date(d);const day=x.getDay();const diff=(day===0?-6:1-day);return addDays(x,diff)}
+  function addDays(d,n){return window.FCAddDays(d,n)}
+  function monday(d){const x=new Date(d);const day=x.getDay();const diff=(day===0?-6:1-day);return window.FCAddDays(x,diff)}
   function clamp(arr){return arr.length?arr[Math.floor(Math.random()*arr.length)]:null}
   function shuffle(a){return [...a].sort(()=>Math.random()-.5)}
   function uniqueKey(x){return (x.name||'').toLowerCase().replace(/\s+/g,' ').trim()}
@@ -3788,7 +3792,7 @@ window.addEventListener('load',()=>{
       const dates=[]; let cursor=new Date(start);
       while(cursor<=end){
         if(cursor.getDay()===opts.day1||cursor.getDay()===opts.day2) dates.push(new Date(cursor));
-        cursor=addDays(cursor,1);
+        cursor=window.FCAddDays(cursor,1);
       }
       const weeks=[]; const used=new Set();
       dates.forEach((d,i)=>{
@@ -3842,10 +3846,10 @@ window.addEventListener('load',()=>{
   }
   function weekDates(opts,weekNo){
     const start=new Date(opts.start+'T12:00:00');
-    const base=addDays(start,(Math.max(1,weekNo)-1)*7);
-    const end=addDays(base,6);
+    const base=window.FCAddDays(start,(Math.max(1,weekNo)-1)*7);
+    const end=window.FCAddDays(base,6);
     const ds=[];
-    for(let d=new Date(base);d<=end;d=addDays(d,1)){
+    for(let d=new Date(base);d<=end;d=window.FCAddDays(d,1)){
       if(d>=new Date(opts.start+'T12:00:00') && d<=new Date(opts.end+'T12:00:00') &&
          (d.getDay()===opts.day1 || d.getDay()===opts.day2)) ds.push(new Date(d));
     }
