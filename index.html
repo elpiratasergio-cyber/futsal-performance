@@ -161,6 +161,17 @@ header .inner,.wrap{width:100%}
   .session-date-row input{max-width:none;width:100%}
 }
 
+
+/* Historial desplegable */
+.history-card{overflow:hidden;padding:0}
+.history-card-summary{list-style:none;display:flex;gap:10px;align-items:center;justify-content:space-between;padding:12px;cursor:pointer;user-select:none}
+.history-card-summary::-webkit-details-marker{display:none}
+.history-card-summary:hover{background:#f7fbf8}
+.history-chevron{font-size:20px;font-weight:900;line-height:1;transition:transform .18s ease}
+.history-card[open] .history-chevron{transform:rotate(180deg)}
+.history-card-body{padding:0 12px 12px}
+.history-card-body .history-card-actions{padding-top:2px;margin-bottom:8px}
+
 </style></head><body>
 <header><div class="inner"><h1>FUTSAL PERFORMANCE · Banco de ejercicios</h1><p>Biblioteca específica para los primeros 20' de trabajo después del calentamiento activo.</p></div></header>
 <div class="wrap">
@@ -190,7 +201,7 @@ header .inner,.wrap{width:100%}
       <label>Nombre de la sesión</label>
       <input id="sessionName" placeholder="Se genera automáticamente">
     </div>
-    <button class="green" onclick="saveCurrentGeneratedSession()">💾 Guardar sesión actual</button>
+    <button class="green" onclick="saveCurrentGeneratedSession()">💾 Guardar / comprobar sesión</button>
   </div>
   <div id="historyStatus" class="history-status"></div>
   <div id="historyList" class="history-list">
@@ -2850,7 +2861,12 @@ window.addEventListener('load',syncExercisesFromSupabase);
       .order('session_date',{ascending:false})
       .order('created_at',{ascending:false});
     if(error) throw error;
-    return data||[];
+    return (data||[]).map(s=>({
+      ...s,
+      _dedupeKey: `${s.session_date||''}|${(s.training_session_exercises||[])
+        .slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0))
+        .map(e=>Number(e.exercise_id)).join(',')}`
+    }));
   }
 
   async function persistSession(plan, date, name){
@@ -2877,27 +2893,45 @@ window.addEventListener('load',syncExercisesFromSupabase);
       root.innerHTML='<div class="history-empty">Todavía no hay sesiones guardadas.</div>';
       return;
     }
-    root.innerHTML=items.map((s,idx)=>{
-      const exercises=(s.training_session_exercises||[]).slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+
+    // Orden cronológico: sesión más antigua primero.
+    const ordered = [...items].sort((a,b)=>{
+      const da=String(a.session_date||'9999-99-99');
+      const db=String(b.session_date||'9999-99-99');
+      if(da!==db) return da.localeCompare(db);
+      return String(a.created_at||'').localeCompare(String(b.created_at||''));
+    });
+
+    root.innerHTML=ordered.map((s,idx)=>{
+      const exercises=(s.training_session_exercises||[])
+        .slice()
+        .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
       const label=s.name || `SESIÓN ${idx+1}`;
-      return `<article class="history-card">
-        <div class="history-card-head">
+      const dateLabel=isoToEs(s.session_date||'');
+      const exerciseRows=exercises.map((e,i)=>{
+        const ex=EX.find(x=>Number(x.id)===Number(e.exercise_id));
+        return `<div class="history-exercise" onclick="event.preventDefault();event.stopPropagation();openExercise(${Number(e.exercise_id)})">
+          <span><b>${i+1}.</b> ${escHTML(ex?.name||('Ejercicio #'+e.exercise_id))}</span>
+          <b>${Number(e.minutes||10)}'</b>
+        </div>`;
+      }).join('');
+
+      return `<details class="history-card">
+        <summary class="history-card-summary">
           <div>
             <div class="history-card-title">${escHTML(label)}</div>
-            <div class="history-card-meta">${escHTML(isoToEs(s.session_date||''))} · ${Number(s.duration_minutes||20)} min · ${exercises.length} ejercicios</div>
+            <div class="history-card-meta">${escHTML(dateLabel)} · ${Number(s.duration_minutes||20)} min · ${exercises.length} ejercicios</div>
           </div>
+          <span class="history-chevron">⌄</span>
+        </summary>
+        <div class="history-card-body">
           <div class="history-card-actions">
-            <button class="light" onclick="loadHistorySession('${String(s.id||'')}')">↗ Ver sesión</button>
-            ${s.id ? `<button class="remove" onclick="deleteHistorySession('${String(s.id)}')">🗑</button>`:''}
+            <button class="light" onclick="event.preventDefault();event.stopPropagation();loadHistorySession('${String(s.id||'')}')">↗ Ver sesión</button>
+            ${s.id ? `<button class="remove" onclick="event.preventDefault();event.stopPropagation();deleteHistorySession('${String(s.id)}')">🗑 Eliminar</button>`:''}
           </div>
+          <div class="history-exercises">${exerciseRows}</div>
         </div>
-        <div class="history-exercises">
-          ${exercises.map((e,i)=>{
-            const ex=EX.find(x=>Number(x.id)===Number(e.exercise_id));
-            return `<div class="history-exercise" onclick="openExercise(${Number(e.exercise_id)})"><span><b>${i+1}.</b> ${escHTML(ex?.name||('Ejercicio #'+e.exercise_id))}</span><b>${Number(e.minutes||10)}'</b></div>`;
-          }).join('')}
-        </div>
-      </article>`;
+      </details>`;
     }).join('');
   }
 
@@ -2919,26 +2953,60 @@ window.addEventListener('load',syncExercisesFromSupabase);
 
   async function savePlan(plan){
     if(!plan?.length)return;
+
     const date=normalizeSessionDate();
     const current=localHistory();
-    const nextNumber=current.length+1;
     const custom=document.getElementById('sessionName')?.value.trim();
+
+    // La numeración se calcula sobre las sesiones ya existentes, en orden cronológico.
+    const nextNumber=current.length+1;
     const name=custom || defaultName(date,nextNumber);
-    document.getElementById('sessionName').value=name;
+    const dedupeKey=`${date}|${plan.map(x=>x.id).join(',')}`;
+
+    // Si esta misma sesión ya existe, no insertamos otra.
+    const localExisting=current.find(s=>s._dedupeKey===dedupeKey);
+    if(localExisting){
+      document.getElementById('sessionName').value=localExisting.name || name;
+      setStatus(`Esta sesión ya está guardada: ${localExisting.name || name}`);
+      return localExisting;
+    }
+
+    // Comprobación adicional contra Supabase para evitar duplicados si la copia local
+    // se ha sincronizado/eliminado después del guardado automático.
+    try{
+      const cloud=await fetchCloudHistory();
+      if(cloud){
+        const cloudExisting=cloud.find(s=>{
+          const ids=(s.training_session_exercises||[])
+            .slice()
+            .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0))
+            .map(e=>Number(e.exercise_id));
+          return String(s.session_date||'')===String(date) &&
+                 ids.length===plan.length &&
+                 ids.every((id,i)=>id===Number(plan[i].id));
+        });
+        if(cloudExisting){
+          document.getElementById('sessionName').value=cloudExisting.name || name;
+          setStatus(`Esta sesión ya está guardada: ${cloudExisting.name || name}`);
+          await refreshHistory();
+          return cloudExisting;
+        }
+      }
+    }catch(err){
+      console.warn('No se pudo comprobar duplicado en Supabase.',err);
+    }
 
     const localId='local-'+Date.now();
     const localRow={
       id:localId,name,team:'Senior',session_date:date,duration_minutes:20,
       objective:document.getElementById('goal')?.value||'auto',
       created_at:new Date().toISOString(),
-      training_session_exercises:plan.map((x,i)=>({id:'local-'+i,exercise_id:Number(x.id),sort_order:i+1,minutes:Number(x.minutes||10)}))
+      _dedupeKey:dedupeKey,
+      training_session_exercises:plan.map((x,i)=>({
+        id:'local-'+i,exercise_id:Number(x.id),sort_order:i+1,minutes:Number(x.minutes||10)
+      }))
     };
-    const dedupeKey=`${date}|${plan.map(x=>x.id).join(',')}`;
-    if(current.some(s=>s._dedupeKey===dedupeKey)){
-      setStatus('Esta misma combinación ya está guardada para esa fecha.');
-      return;
-    }
-    localRow._dedupeKey=dedupeKey;
+
     saveLocal([localRow,...current]);
 
     try{
@@ -2948,15 +3016,17 @@ window.addEventListener('load',syncExercisesFromSupabase);
         saveLocal(h);
         setStatus(`Guardada: ${name}`);
         await refreshHistory();
-        return;
+        return cloud;
       }
     }catch(err){
       console.warn('No se pudo guardar en Supabase; se conserva la copia local.',err);
       setStatus(`Guardada localmente. Supabase respondió con un error: ${err.message||err}`,true);
-      return;
+      return localRow;
     }
+
     setStatus(`Guardada: ${name}`);
     renderHistory(localHistory());
+    return localRow;
   }
 
   window.saveCurrentGeneratedSession=function(){savePlan(session||[]);};
