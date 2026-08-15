@@ -2952,41 +2952,66 @@ window.addEventListener('load',syncExercisesFromSupabase);
   }
 
   async function computeNextSessionMeta(){
-    let items=localHistory();
+    // Unimos historial local + Supabase. Nunca dejamos que una consulta cloud vacía
+    // borre el historial local, porque eso hacía volver la numeración a SESIÓN 1.
+    const local=localHistory();
+    let cloud=[];
     try{
-      const cloud=await fetchCloudHistory();
-      if(Array.isArray(cloud)) items=cloud;
-    }catch(e){console.warn('No se pudo consultar el historial cloud para calcular la siguiente sesión.',e)}
+      const result=await fetchCloudHistory();
+      if(Array.isArray(result)) cloud=result;
+    }catch(e){
+      console.warn('No se pudo consultar Supabase para calcular la siguiente sesión.',e);
+    }
 
-    // Buscar el número más alto existente: SESIÓN 1, SESIÓN 2, SESIÓN 3...
+    const byId=new Map();
+    [...local,...cloud].forEach(s=>{
+      const key=s?.id ? String(s.id) : `${s?.session_date||''}|${s?.name||''}|${s?.created_at||''}`;
+      if(!byId.has(key))byId.set(key,s);
+    });
+    const items=[...byId.values()];
+
+    // Buscar el número más alto escrito en el nombre. Si hay duplicados, se mantiene
+    // la secuencia y la siguiente será siempre el número siguiente al máximo.
     let maxNumber=0;
     items.forEach(s=>{
-      const m=String(s.name||'').match(/SESI[ÓO]N\s+(\d+)/i);
-      if(m) maxNumber=Math.max(maxNumber,Number(m[1]));
+      const m=String(s?.name||'').match(/SESI[ÓO]N\s+(\d+)/i);
+      if(m)maxNumber=Math.max(maxNumber,Number(m[1]));
     });
     const nextNumber=maxNumber>0 ? maxNumber+1 : items.length+1;
 
-    const ordered=[...items].sort((a,b)=>{
-      const da=String(a.session_date||'');
-      const db=String(b.session_date||'');
+    // Última fecha real de las sesiones guardadas.
+    const ordered=items.filter(s=>s?.session_date).sort((a,b)=>{
+      const da=String(a.session_date),db=String(b.session_date);
       if(da!==db)return db.localeCompare(da);
       return String(b.created_at||'').localeCompare(String(a.created_at||''));
     });
-    const last=ordered[0];
+
     let d;
+    const last=ordered[0];
     if(last?.session_date){
-      const parts=String(last.session_date).split('-').map(Number);
-      d=new Date(parts[0],parts[1]-1,parts[2]);
-      const day=d.getDay();
-      const delta=day===2?2:day===4?5:(()=>{let n=1;while(![2,4].includes((day+n)%7))n++;return n})();
+      const [y,m,day]=String(last.session_date).split('-').map(Number);
+      d=new Date(y,m-1,day);
+      const weekday=d.getDay();
+      let delta;
+      if(weekday===2)delta=2;       // martes -> jueves
+      else if(weekday===4)delta=5;  // jueves -> martes siguiente
+      else{
+        delta=1;
+        while(![2,4].includes((weekday+delta)%7))delta++;
+      }
       d.setDate(d.getDate()+delta);
     }else{
       d=new Date();
-      const day=d.getDay();
+      const weekday=d.getDay();
       let delta=14;
-      for(const target of [2,4]){let x=(target-day+7)%7;if(x===0)x=7;if(x<delta)delta=x}
+      for(const target of [2,4]){
+        let x=(target-weekday+7)%7;
+        if(x===0)x=7;
+        if(x<delta)delta=x;
+      }
       d.setDate(d.getDate()+delta);
     }
+
     const date=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     const name=defaultName(date,nextNumber);
     const dateEl=document.getElementById('sessionDate');
@@ -3253,10 +3278,20 @@ window.addEventListener('load',syncExercisesFromSupabase);
     lastSavedPlanKey='';
     session=plan;renderSession();
     // Calculamos N + fecha justo al generar, consultando Supabase primero.
-    let meta=null;
-    try{meta=await window.prepareNextSessionMeta()}catch(e){console.warn(e)}
+    let meta;
+    try{
+      meta=await window.prepareNextSessionMeta();
+    }catch(e){
+      console.warn('No se pudo calcular automáticamente la siguiente sesión.',e);
+      const current=localHistory();
+      const n=current.reduce((max,s)=>Math.max(max,Number((String(s?.name||'').match(/SESI[ÓO]N\s+(\d+)/i)||[])[1]||0)),0)+1;
+      const date=nextTrainingDate();
+      meta={date,name:defaultName(date,n),nextNumber:n};
+      document.getElementById('sessionDate').value=date;
+      document.getElementById('sessionName').value=meta.name;
+    }
     const out=document.getElementById('generated');out.style.display='block';
-    out.innerHTML='<div class="generated-session-head"><h3>'+escHTML(meta?.name||'Nueva sesión · 20 minutos')+'</h3><div class="actions"><button class="light" onclick="saveCurrentGeneratedSession()">💾 Guardar</button></div></div>'+plan.map((x,i)=>`<div class="gitem clickable" onclick="openExercise(${x.id})"><b>${i+1}</b><div><b>${x.name}</b><small>${x.cat} · ${x.objective}</small></div><b>${x.minutes}'</b></div>`).join('');
+    out.innerHTML='<div class="generated-session-head"><h3>'+escHTML(meta.name)+'</h3><div class="actions"><button class="light" onclick="saveCurrentGeneratedSession()">💾 Guardar</button></div></div>'+plan.map((x,i)=>`<div class="gitem clickable" onclick="openExercise(${x.id})"><b>${i+1}</b><div><b>${x.name}</b><small>${x.cat} · ${x.objective}</small></div><b>${x.minutes}'</b></div>`).join('');
     // Guardado automático: savePlan vuelve a comprobar N/fecha para evitar duplicados.
     setTimeout(()=>{try{saveCurrentGeneratedSession()}catch(e){console.warn(e)}},80);
   };
