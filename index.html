@@ -454,6 +454,24 @@ header .inner,.wrap{width:100%}
 })();
 </script>
 
+
+<style id="fc-manual-exercise-style">
+.fc-exercise-actions{display:flex;justify-content:flex-end;gap:8px;align-items:center;margin:8px 0 5px}
+.fc-exercise-actions button{margin:0!important}
+.week-manual{background:#fff7e8!important;color:#8a4b00!important;border:1px solid #f1c27d!important}
+.fc-manual-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:18px}
+.fc-manual-modal{width:min(620px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:18px;padding:20px;box-shadow:0 20px 60px #0005}
+.fc-manual-head{display:flex;justify-content:space-between;align-items:center;font-size:19px;margin-bottom:16px}
+.fc-manual-head button{border:0;background:#eee;border-radius:50%;width:34px;height:34px;font-size:18px}
+.fc-manual-modal label{display:block;font-size:13px;font-weight:800;margin:12px 0 5px}
+.fc-manual-modal input,.fc-manual-modal textarea{width:100%;box-sizing:border-box;border:1px solid #ccd8d2;border-radius:10px;padding:10px;font:inherit}
+.fc-manual-preview{margin-top:10px;min-height:60px;background:#f5f8f6;border-radius:10px;padding:10px;text-align:center;color:#6a7d73}
+.fc-manual-preview img{max-width:100%;max-height:180px;border-radius:8px}
+.fc-manual-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+.fc-manual-actions button{padding:10px 14px;border-radius:10px;border:1px solid #ccd8d2;cursor:pointer;font-weight:800}
+.fc-manual-image-details{margin-top:10px}
+.fc-manual-image{display:block;width:100%;max-height:420px;object-fit:contain;margin-top:8px;border-radius:12px;background:#f5f8f6}
+</style>
 </head><body>
 <header>
   <div class="inner">
@@ -4573,14 +4591,14 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
             '<div class="fc-rebuild-day-title"><span>'+s.day.toUpperCase()+'</span><span class="fc-rebuild-day-date">'+escapeHtml(s.dateLabel)+'</span></div>'+
             s.rows.map(function(r,ri){
               var canChange=ri>0 && ri<5 && r.exercise;
-              var changeBtn=canChange?'<button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace('+w.weekNo+','+si+','+ri+');event.stopPropagation()">🔄 Cambiar ejercicio</button>':'';
+              var changeBtn=canChange?'<div class="fc-exercise-actions"><button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace('+w.weekNo+','+si+','+ri+');event.stopPropagation()">🔄 Automático</button><button class="week-manual fc-rebuild-manual" onclick="fcManualExercise('+w.weekNo+','+si+','+ri+');event.stopPropagation()">✏️ Manual</button></div>':'';
               return '<div class="fc-rebuild-exercise '+(r.block==='match'?'fc-rebuild-match':'')+'">'+
                 '<div class="fc-rebuild-ex-title"><strong>'+escapeHtml(r.name)+'</strong><span class="time">'+escapeHtml(r.time)+'</span></div>'+
                 changeBtn+
                 '<details class="fc-rebuild-details"><summary>▼ Ver objetivo y detalles</summary>'+
                   '<div class="fc-rebuild-details-body"><b>Objetivo:</b> '+escapeHtml(r.objective)+'<br>'+escapeHtml(r.desc)+'</div>'+
                 '</details>'+
-                scheme(r)+
+                (r.manualImage?'<details class="fc-manual-image-details"><summary>▼ Ver imagen del ejercicio</summary><img class="fc-manual-image" src="'+escapeHtml(r.manualImage)+'" alt="Esquema de '+escapeHtml(r.name)+'"></details>':scheme(r))+
               '</div>';
             }).join('')+
           '</div>';
@@ -5062,12 +5080,15 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
               ${s.rows.map((r,ri)=>`
                 <div class="fc-rebuild-exercise ${r.block==='match'?'fc-rebuild-match':''}">
                   <div class="fc-rebuild-ex-title"><strong>${esc(r.name)}</strong><span class="time">${esc(r.time)}</span></div>
-                  ${r.block!=='match'?`<button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace(${w.weekNo},${si},${ri});event.stopPropagation()">🔄 Cambiar ejercicio</button>`:''}
+                  ${r.block!=='match'?`<div class="fc-exercise-actions">
+  <button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace(${w.weekNo},${si},${ri});event.stopPropagation()">🔄 Automático</button>
+  <button class="week-manual fc-rebuild-manual" onclick="fcManualExercise(${w.weekNo},${si},${ri});event.stopPropagation()">✏️ Manual</button>
+</div>`:''}
                   <details class="fc-rebuild-details">
                     <summary>▼ Ver objetivo y detalles</summary>
                     <div class="fc-rebuild-details-body"><b>Objetivo:</b> ${esc(r.objective)}<br>${esc(r.desc)}</div>
                   </details>
-                  ${scheme(r)}
+                  ${r.manualImage?'<details class="fc-manual-image-details"><summary>▼ Ver imagen del ejercicio</summary><img class="fc-manual-image" src="'+esc(r.manualImage)+'" alt="Esquema de '+esc(r.name)+'"></details>':scheme(r)}
                 </div>
               `).join('')}
             </div>
@@ -5114,6 +5135,66 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     const fresh=pick(row.block,pf,pf.goal,used,recent,si);
     row.exercise=fresh;row.name=fresh.name;row.objective=fresh.objective;row.desc=fresh.execution;
     save(hist);window.__infantilWeek=w;render(hist);
+  };
+
+
+  window.fcManualExercise=function(week,si,ri){
+    const hist=load(), w=hist.find(x=>Number(x.weekNo)===Number(week));
+    if(!w||!w.sessions[si])return;
+    const row=w.sessions[si].rows[ri];
+    if(!row||row.block==='match'||row.block==='mobility')return;
+
+    const old=document.getElementById('fcManualModal'); if(old)old.remove();
+    const modal=document.createElement('div');
+    modal.id='fcManualModal';
+    modal.className='fc-manual-overlay';
+    modal.innerHTML=`
+      <div class="fc-manual-modal">
+        <div class="fc-manual-head"><strong>✏️ Cambiar ejercicio manualmente</strong><button onclick="document.getElementById('fcManualModal').remove()">✕</button></div>
+        <label>Nombre del ejercicio</label>
+        <input id="fcManualName" value="${esc(row.name||'')}" placeholder="Ej.: Rondo 4x1 + salida">
+        <label>Objetivo</label>
+        <input id="fcManualObjective" value="${esc(row.objective||'')}" placeholder="Objetivo del ejercicio">
+        <label>Descripción / ejecución</label>
+        <textarea id="fcManualDesc" rows="5" placeholder="Explica cómo se realiza">${esc(row.desc||'')}</textarea>
+        <label>Imagen del ejercicio (opcional)</label>
+        <input id="fcManualImage" type="file" accept="image/*">
+        <div class="fc-manual-preview">${row.manualImage?'<img src="'+row.manualImage+'" alt="Imagen actual">':'Sin imagen personalizada'}</div>
+        <div class="fc-manual-actions">
+          <button class="week-manual" onclick="fcSaveManualExercise(${week},${si},${ri});event.stopPropagation()">Guardar cambios</button>
+          <button class="week-exchange" onclick="document.getElementById('fcManualModal').remove()">Cancelar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  };
+
+  window.fcSaveManualExercise=function(week,si,ri){
+    const hist=load(), w=hist.find(x=>Number(x.weekNo)===Number(week));
+    if(!w||!w.sessions[si])return;
+    const row=w.sessions[si].rows[ri];
+    const name=document.getElementById('fcManualName').value.trim();
+    const objective=document.getElementById('fcManualObjective').value.trim();
+    const desc=document.getElementById('fcManualDesc').value.trim();
+    const file=document.getElementById('fcManualImage').files[0];
+
+    if(!name){alert('Escribe el nombre del ejercicio.');return;}
+    const finish=function(img){
+      row.name=name;
+      row.objective=objective||'Aplicación del contenido';
+      row.desc=desc||'Realizar el ejercicio según las indicaciones.';
+      row.exercise=row.exercise||{};
+      row.exercise.name=row.name;
+      row.exercise.objective=row.objective;
+      row.exercise.execution=row.desc;
+      row.exercise.manual=true;
+      if(img){row.manualImage=img;row.exercise.manualImage=img;}
+      save(hist);window.__infantilWeek=w;document.getElementById('fcManualModal')?.remove();render(hist);
+    };
+    if(file){
+      const reader=new FileReader();
+      reader.onload=function(){finish(reader.result)};
+      reader.readAsDataURL(file);
+    }else finish(row.manualImage||null);
   };
 
   window.fcRebuildDelete=function(week){
