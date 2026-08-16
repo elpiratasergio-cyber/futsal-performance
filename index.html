@@ -4561,28 +4561,31 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     var el=document.getElementById('seasonWeeks');
     if(!el)return;
     if(!history.length){el.innerHTML='<div class="empty">Todavía no hay semanas generadas.</div>';return;}
-    el.innerHTML=history.map(function(w,index){
+    el.innerHTML=history.sort((a,b)=>a.weekNo-b.weekNo).map(function(w,index){
       var open=index===history.length-1?' open':'';
       return '<details class="week-card"'+open+'>'+
         '<summary><span>SEMANA '+w.weekNo+' · '+escapeHtml(w.sessions[0].dateLabel)+' — '+escapeHtml(w.sessions[1].dateLabel)+'</span>'+
         '<span class="week-meta">2 sesiones · '+escapeHtml(w.phase)+'</span></summary>'+
         '<div class="week-body">'+
         '<div class="season-note"><b>Enfoque:</b> '+escapeHtml(w.focus.join(' · '))+'</div>'+
-        '<div class="week-card-actions"><button class="secondary small" onclick="event.preventDefault();event.stopPropagation();deleteInfantilWeek('+w.weekNo+')">🗑️ Eliminar semana</button></div>'+
         w.sessions.map(function(s,si){
-          return '<div class="session-day"><h4><span>'+s.day+' · '+escapeHtml(s.dateLabel)+'</span><span>'+escapeHtml(s.phase)+'</span></h4><div style="padding:0 14px 12px">'+
-          s.rows.map(function(r,ri){
-            var canChange=ri>0 && ri<5 && r.exercise;
-            var changeBtn=canChange?'<button class="week-exchange" onclick="replaceInfantilExercise('+w.weekNo+','+si+','+ri+');event.stopPropagation()">🔄 Cambiar ejercicio</button>':'';
-            return '<div class="session-block '+(r.block==='match'?'fc-infantil-final-match':'')+'">'+
-              '<div class="session-block-title"><strong>'+escapeHtml(r.name)+'</strong><span class="time">'+escapeHtml(r.time)+'</span></div>'+
-              '<div class="week-ex-desc"><b>Objetivo:</b> '+escapeHtml(r.objective)+'<br>'+escapeHtml(r.desc)+'</div>'+
-              changeBtn+
-              visual(r.block,r.name) +
-            '</div>';
-          }).join('')+
-          '</div></div>';
+          return '<div class="fc-rebuild-day">'+
+            '<div class="fc-rebuild-day-title"><span>'+s.day.toUpperCase()+'</span><span class="fc-rebuild-day-date">'+escapeHtml(s.dateLabel)+'</span></div>'+
+            s.rows.map(function(r,ri){
+              var canChange=ri>0 && ri<5 && r.exercise;
+              var changeBtn=canChange?'<button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace('+w.weekNo+','+si+','+ri+');event.stopPropagation()">🔄 Cambiar ejercicio</button>':'';
+              return '<div class="fc-rebuild-exercise '+(r.block==='match'?'fc-rebuild-match':'')+'">'+
+                '<div class="fc-rebuild-ex-title"><strong>'+escapeHtml(r.name)+'</strong><span class="time">'+escapeHtml(r.time)+'</span></div>'+
+                changeBtn+
+                '<details class="fc-rebuild-details"><summary>▼ Ver objetivo y detalles</summary>'+
+                  '<div class="fc-rebuild-details-body"><b>Objetivo:</b> '+escapeHtml(r.objective)+'<br>'+escapeHtml(r.desc)+'</div>'+
+                '</details>'+
+                scheme(r)+
+              '</div>';
+            }).join('')+
+          '</div>';
         }).join('')+
+        '<div class="week-card-actions"><button class="danger small" onclick="event.preventDefault();event.stopPropagation();fcRebuildDelete('+w.weekNo+')">🗑️ Eliminar semana</button></div>'+
         '</div></details>';
     }).join('');
   }
@@ -4821,7 +4824,7 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
 .fc-rebuild-scheme svg{width:100%;height:auto;display:block;margin-top:8px;border-radius:10px}
 .fc-rebuild-match{border:2px solid #173f31;background:#f5faf7}
 .fc-rebuild-match .fc-rebuild-ex-title strong{font-size:19px}
-.fc-rebuild-change{margin-top:8px}
+.fc-rebuild-change{margin-top:8px;margin-bottom:7px;display:flex;width:max-content}.fc-rebuild-details{margin-top:0}.fc-rebuild-day-title{font-size:38px}.fc-rebuild-day-date{font-size:18px}@media(max-width:650px){.fc-rebuild-day-title{font-size:30px;padding:16px 18px}.fc-rebuild-day-date{font-size:15px}}
 </style>
 <script id="fc-infantil-rebuild">
 (function(){
@@ -4899,10 +4902,11 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
   }
 
   function allExercises(){
+    // EX y GAMES viven en este mismo <script> como const; no dependen de window.
+    // Usarlos directamente evita que el generador caiga en "Tarea contextual".
     let pool=[];
-    try{pool=pool.concat(A(window.EX||[]))}catch(e){}
-    try{pool=pool.concat(A(window.GAMES||[]).map(x=>({...x,cat:x.cat||'Juego'})))}catch(e){}
-    // Exercises custom are included when available; no external random source.
+    try{pool=pool.concat(A(EX||[]))}catch(e){}
+    try{pool=pool.concat(A(GAMES||[]).map(x=>({...x,cat:x.cat||'Juego'})))}catch(e){}
     const seen=new Set();
     return pool.filter(e=>{
       if(!e||!e.name)return false;
@@ -5058,12 +5062,11 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
               ${s.rows.map((r,ri)=>`
                 <div class="fc-rebuild-exercise ${r.block==='match'?'fc-rebuild-match':''}">
                   <div class="fc-rebuild-ex-title"><strong>${esc(r.name)}</strong><span class="time">${esc(r.time)}</span></div>
-                  ${r.block!=='match'?`
-                    <details class="fc-rebuild-details"><summary>Ver objetivo y detalles</summary>
-                      <div class="fc-rebuild-details-body"><b>Objetivo:</b> ${esc(r.objective)}<br>${esc(r.desc)}</div>
-                    </details>
-                    <button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace(${w.weekNo},${si},${ri});event.stopPropagation()">🔄 Cambiar ejercicio</button>
-                  `:`<div class="fc-rebuild-details-body"><b>Objetivo:</b> ${esc(r.objective)}<br>${esc(r.desc)}</div>`}
+                  ${r.block!=='match'?`<button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace(${w.weekNo},${si},${ri});event.stopPropagation()">🔄 Cambiar ejercicio</button>`:''}
+                  <details class="fc-rebuild-details">
+                    <summary>▼ Ver objetivo y detalles</summary>
+                    <div class="fc-rebuild-details-body"><b>Objetivo:</b> ${esc(r.objective)}<br>${esc(r.desc)}</div>
+                  </details>
                   ${scheme(r)}
                 </div>
               `).join('')}
