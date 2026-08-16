@@ -473,11 +473,12 @@ header .inner,.wrap{width:100%}
 .fc-manual-image{display:block;width:100%;max-height:420px;object-fit:contain;margin-top:8px;border-radius:12px;background:#f5f8f6}
 </style>
 
-<style id="fc-season-detail-style">
-.fc-rebuild-details-body{display:grid;gap:10px;padding:14px 16px;background:#f7faf8;border-top:1px solid #dce8e1;line-height:1.5}
-.fc-detail-block{padding:10px 12px;background:#fff;border:1px solid #e1ebe5;border-radius:11px}
-.fc-detail-label{display:block;font-weight:900;color:#174c3b;margin-bottom:3px}
-.fc-detail-text{color:#34463e}
+<style>
+.fc-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:8px}
+.fc-detail-box{background:#f7faf9;border:1px solid #dce8e4;border-radius:12px;padding:12px 14px}
+.fc-detail-box b{display:block;color:#174c3e;margin-bottom:5px}
+.fc-detail-box p{margin:0;line-height:1.45;color:#33423f}
+@media(max-width:700px){.fc-detail-grid{grid-template-columns:1fr}}
 </style>
 </head><body>
 <header>
@@ -4583,42 +4584,42 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
   }
 
   function exerciseDetailHtml(row){
-    const e=row&&row.exercise&&typeof row.exercise==='object'?row.exercise:{};
-    const name=row&&row.name?row.name:(e.name||'Ejercicio');
-    const objective=row&&row.objective?row.objective:(e.objective||'Aplicación del contenido trabajado.');
-    const execution=row&&row.desc?row.desc:(e.execution||e.desc||'Realizar la tarea respetando las reglas y adaptando el espacio al nivel del grupo.');
-    const material=e.material||row.material||'Balones, conos y petos según la tarea.';
-    const players=e.players||row.players||'';
-    const mode=e.mode||row.mode||'';
-    const dose=e.dose||row.dose||row.time||'';
-    const type=e.type||row.type||'';
-    const tags=contentTags({...e,name,objective,execution,type,cat:e.cat||row.cat});
-
-    let setup='Organizar el espacio antes de comenzar y colocar el material de forma que los jugadores tengan referencias claras y suficiente espacio para ejecutar la tarea.';
-    if(/rondo|posesi[oó]n|conserv/i.test(name+' '+type+' '+execution)){
-      setup=`Formar el espacio de juego con ${material.toLowerCase()}. Distribuir a los jugadores según la cantidad disponible${players?` (referencia: ${players})`:''} y comenzar con la estructura indicada en la tarea.`;
-    }else if(/1x1|duelo|2x1|3x2|superioridad/i.test(name+' '+type+' '+execution)){
-      setup=`Delimitar una zona de trabajo con ${material.toLowerCase()}. Colocar a los jugadores por turnos para que la siguiente acción pueda comenzar inmediatamente${players?` (referencia: ${players})`:''}.`;
-    }else if(/finaliz|tiro|remate|porter/i.test(name+' '+type+' '+execution)){
-      setup=`Preparar la zona de finalización con ${material.toLowerCase()} y orientar el ejercicio hacia la portería. Dejar balones preparados para que las repeticiones sean continuas${players?` y organizar los turnos para ${players} jugadores`:''}.`;
-    }else if(row.block==='match'){
-      setup='Utilizar la pista completa, colocar a los equipos y comenzar el partido aplicando las consignas trabajadas durante la sesión.';
+    var e=row&&row.exercise&&typeof row.exercise==='object'?row.exercise:{};
+    var name=row&&row.name?row.name:(e.name||'Ejercicio');
+    var objective=row&&row.objective?row.objective:(e.objective||'Aplicación del contenido trabajado.');
+    var execution=row&&row.desc?row.desc:(e.execution||e.desc||'Realizar la tarea respetando las reglas y adaptando el espacio al nivel del grupo.');
+    var material=e.material||row.material||'Balones, conos y petos según la tarea.';
+    var players=e.players||row.players||'Según asistencia.';
+    var dose=e.dose||row.dose||row.time||'Según la sesión.';
+    var type=e.type||row.type||'';
+    var text=(name+' '+type+' '+execution).toLowerCase();
+    var setup='Delimitar el espacio antes de comenzar, colocar el material y distribuir a los jugadores para que la tarea pueda empezar rápidamente. Explicar primero la dinámica y después introducir las reglas progresivamente.';
+    if(/rondo|posesi|conserv/.test(text)){
+      setup='Delimitar un espacio de posesión con '+material.toLowerCase()+'. Distribuir a los jugadores manteniendo líneas de pase y suficiente separación. Iniciar con la estructura básica y añadir las restricciones después de comprobar que todos entienden la tarea.';
+    }else if(/1x1|duelo|2x1|3x2|superioridad|inferioridad/.test(text)){
+      setup='Marcar una zona de trabajo con '+material.toLowerCase()+'. Organizar los turnos para que los jugadores entren y salgan con rapidez. Colocar atacantes y defensores según la situación planteada y preparar balones de continuidad.';
+    }else if(/finaliz|tiro|remate|porter/.test(text)){
+      setup='Preparar la zona de finalización con '+material.toLowerCase()+' y orientar las acciones hacia la portería. Dejar varios balones preparados para evitar tiempos muertos y organizar los turnos para que todos participen de forma continua.';
+    }else if(row&&row.block==='match'){
+      setup='Utilizar la pista completa, formar los equipos y comenzar el partido aplicando una condición relacionada con el objetivo de la sesión.';
     }
-
-    let keys='Observar la calidad de la ejecución, la toma de decisiones y la intensidad adecuada para la edad. Corregir con mensajes breves y concretos sin detener continuamente la tarea.';
-    if(tags.includes('control')||tags.includes('pase')) keys='Insistir en el perfil corporal, el control orientado, el pase al compañero adecuado y la movilidad inmediata después de pasar.';
-    if(tags.includes('posesion')) keys='Buscar apoyos constantes, líneas de pase y velocidad de circulación. Premiar que los jugadores levanten la cabeza antes de recibir.';
-    if(tags.includes('defensa')||tags.includes('transicion')) keys='Exigir reacción inmediata tras pérdida o recuperación, buena orientación corporal y coordinación entre el jugador que presiona y sus compañeros.';
-    if(tags.includes('finalizacion')) keys='Priorizar la decisión correcta antes del golpeo, atacar espacios y finalizar con la máxima calidad posible sin perder la continuidad del ejercicio.';
-    if(tags.includes('decision')) keys='Plantear preguntas y pequeñas restricciones para que el jugador tenga que percibir, decidir y ejecutar, evitando resolver siempre la acción de la misma manera.';
-
-    let progression='Comenzar con la consigna básica y, cuando el grupo la domine, aumentar progresivamente la dificultad modificando espacio, tiempo, número de toques, oposición o reglas.';
-    if(tags.includes('posesion')) progression='Primero permitir libertad de acción; después limitar toques o espacio y añadir una condición de puntuación para aumentar la velocidad de decisión.';
-    else if(tags.includes('1x1')) progression='Empezar con oposición controlada y aumentar después la velocidad de la acción, reducir espacio o añadir una segunda decisión tras superar al defensor.';
-    else if(tags.includes('superioridad')) progression='Comenzar con superioridad clara y progresar hacia menos tiempo para finalizar, más oposición o una transición inmediata después de la acción.';
-    else if(tags.includes('finalizacion')) progression='Primero asegurar una buena ejecución técnica; después añadir oposición, reducir el tiempo disponible y exigir una decisión previa al remate.';
-
-    return `\n      <div class="fc-detail-block"><span class="fc-detail-label">🎯 Objetivo</span><span class="fc-detail-text">${esc(objective)}</span></div>\n      <div class="fc-detail-block"><span class="fc-detail-label">📋 Cómo se realiza</span><span class="fc-detail-text">${esc(execution)}</span></div>\n      <div class="fc-detail-block"><span class="fc-detail-label">📐 Montaje del ejercicio</span><span class="fc-detail-text">${esc(setup)}</span></div>\n      <div class="fc-detail-block"><span class="fc-detail-label">🧰 Material</span><span class="fc-detail-text">${esc(material)}${dose?` · ${esc(dose)}`:''}</span></div>\n      <div class="fc-detail-block"><span class="fc-detail-label">🔑 Claves del entrenador</span><span class="fc-detail-text">${esc(keys)}</span></div>\n      <div class="fc-detail-block"><span class="fc-detail-label">📈 Progresión</span><span class="fc-detail-text">${esc(progression)}</span></div>`;
+    var keys='Observar la calidad técnica, la toma de decisiones y la intensidad adecuada para la edad. Corregir con mensajes breves y concretos, evitando detener continuamente la tarea.';
+    if(/control|pase/.test(text)) keys='Insistir en el perfil corporal, control orientado, pase al pie adecuado y movilidad inmediata después de pasar. Buscar que el jugador levante la cabeza antes de recibir.';
+    if(/posesi|rondo|conserv/.test(text)) keys='Buscar apoyos constantes, líneas de pase, amplitud y velocidad de circulación. Premiar la movilidad después del pase y la capacidad de jugar lejos de la presión.';
+    if(/finaliz|tiro|remate/.test(text)) keys='Priorizar la orientación corporal, el último pase, la elección de superficie de golpeo y la finalización rápida cuando aparezca ventaja.';
+    if(/1x1|duelo/.test(text)) keys='Fomentar el cambio de ritmo, la protección del balón, el engaño previo y la decisión de superar o combinar según la posición del defensor.';
+    var progression='Comenzar con la versión más sencilla, asegurar comprensión y aumentar progresivamente la dificultad reduciendo espacio, limitando toques, aumentando oposición o añadiendo una condición de puntuación.';
+    var series='Mantener el tiempo asignado al bloque y organizar repeticiones cortas para que haya mucha participación. Alternar pausas breves de explicación con periodos de trabajo continuo.';
+    return '<div class="fc-detail-grid">'+
+      '<div class="fc-detail-box"><b>🎯 Objetivo</b><p>'+escapeHtml(objective)+'</p></div>'+
+      '<div class="fc-detail-box"><b>📋 Cómo se realiza</b><p>'+escapeHtml(execution)+'</p></div>'+
+      '<div class="fc-detail-box"><b>📐 Montaje</b><p>'+escapeHtml(setup)+'</p></div>'+
+      '<div class="fc-detail-box"><b>🧰 Material</b><p>'+escapeHtml(material)+'</p></div>'+
+      '<div class="fc-detail-box"><b>👥 Organización</b><p>'+escapeHtml(players)+'</p></div>'+
+      '<div class="fc-detail-box"><b>⏱️ Series y repeticiones</b><p>'+escapeHtml(dose)+' · '+escapeHtml(series)+'</p></div>'+
+      '<div class="fc-detail-box"><b>🔑 Claves del entrenador</b><p>'+escapeHtml(keys)+'</p></div>'+
+      '<div class="fc-detail-box"><b>📈 Progresión</b><p>'+escapeHtml(progression)+'</p></div>'+
+      '</div>';
   }
 
   function render(history){
@@ -4642,7 +4643,7 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
                 '<div class="fc-rebuild-ex-title"><strong>'+escapeHtml(r.name)+'</strong><span class="time">'+escapeHtml(r.time)+'</span></div>'+
                 changeBtn+
                 '<details class="fc-rebuild-details"><summary>▼ Ver objetivo y detalles</summary>'+
-                  '<div class="fc-rebuild-details-body"><b>Objetivo:</b> '+escapeHtml(r.objective)+'<br>'+escapeHtml(r.desc)+'</div>'+
+                  '<div class="fc-rebuild-details-body">'+exerciseDetailHtml(r)+'</div>'+
                 '</details>'+
                 (r.manualImage?'<details class="fc-manual-image-details"><summary>▼ Ver imagen del ejercicio</summary><img class="fc-manual-image" src="'+escapeHtml(r.manualImage)+'" alt="Esquema de '+escapeHtml(r.name)+'"></details>':scheme(r))+
               '</div>';
@@ -5013,61 +5014,7 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     finishing:{keys:['finaliz','tiro','remate','pared','porter'],cats:['finalizacion','tiro']}
   };
 
-  /*
-   * MEMORIA DE TEMPORADA (capa adicional, sin sustituir el generador anterior).
-   * La biblioteca y las reglas de bloque siguen siendo las mismas. Esta capa solo
-   * modifica la puntuación para que la progresión tenga continuidad y para que
-   * los contenidos trabajados muchas veces pierdan prioridad.
-   */
-  const contentRules={
-    control:['control','primer toque','recepcion','perfil corporal'],
-    pase:['pase','pared','circulacion','apoyo'],
-    conduccion:['conduccion','conducir','cambio de direccion'],
-    posesion:['posesion','rondo','mantener','circulacion','comodin'],
-    '1x1':['1x1','1 vs 1','duelo','regate','desborde'],
-    superioridad:['2x1','2 vs 1','3x2','3 vs 2','superioridad','inferioridad'],
-    amplitud:['amplitud','profundidad','ocupacion','espacios'],
-    defensa:['defensa','marcaje','cobertura','presion'],
-    transicion:['transicion','repliegue','contraataque','perdida','recuperacion'],
-    finalizacion:['finalizacion','finalizar','tiro','remate','gol'],
-    velocidad:['velocidad','reaccion','aceleracion','cambio de direccion'],
-    decision:['decision','decidir','toma de decisiones']
-  };
-
-  function contentTags(e){
-    const t=n([e&&e.name,e&&e.objective,e&&e.execution,e&&e.type,e&&e.cat,e&&e.category].join(' '));
-    const tags=[];
-    Object.keys(contentRules).forEach(tag=>{
-      if(contentRules[tag].some(k=>t.includes(n(k))))tags.push(tag);
-    });
-    return tags;
-  }
-
-  function seasonContentCounts(history,excludeWeek){
-    const counts={};
-    history.filter(w=>Number(w.weekNo)!==Number(excludeWeek)).forEach(w=>{
-      const wn=Number(w.weekNo)||0;
-      /* Las semanas recientes pesan más, pero las antiguas siguen contando. */
-      const weight=wn>=Math.max(1,Number(excludeWeek||1)-4)?3:(wn>=Math.max(1,Number(excludeWeek||1)-10)?2:1);
-      A(w.sessions).forEach(s=>A(s.rows).forEach(row=>{
-        if(!row.exercise)return;
-        contentTags(row.exercise).forEach(tag=>counts[tag]=(counts[tag]||0)+weight);
-      }));
-    });
-    return counts;
-  }
-
-  function progressionProfile(week){
-    const w=Number(week)||1;
-    if(w<=4)return {primary:['control','pase','conduccion','posesion'],secondary:['1x1','decision']};
-    if(w<=8)return {primary:['control','pase','1x1','finalizacion'],secondary:['conduccion','posesion','decision']};
-    if(w<=14)return {primary:['posesion','amplitud','superioridad','decision'],secondary:['pase','defensa','finalizacion']};
-    if(w<=22)return {primary:['transicion','defensa','decision','superioridad'],secondary:['amplitud','1x1','finalizacion']};
-    if(w<=30)return {primary:['decision','transicion','finalizacion','1x1'],secondary:['superioridad','defensa','amplitud']};
-    return {primary:['decision','finalizacion','transicion','defensa'],secondary:['posesion','superioridad','1x1']};
-  }
-
-  function score(e,block,p,goal,used,recent,session,week,seasonCounts){
+  function score(e,block,p,goal,used,recent,session){
     const t=n([e.name,e.objective,e.execution,e.type,e.cat,e.category].join(' '));
     const r=blockRules[block]||{keys:[],cats:[]};
     let s=Math.random()*2;
@@ -5084,26 +5031,15 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
       competition:['decision','transicion','finaliz','partido']
     }[goal]||[];
     goalKeys.forEach(k=>{if(t.includes(n(k)))s+=2});
-
-    /* Progresión: prioriza contenidos propios de la fase, sin forzar un ejercicio. */
-    const profile=progressionProfile(week);
-    const tags=contentTags(e);
-    tags.forEach(tag=>{
-      if(profile.primary.indexOf(tag)>=0)s+=3.5;
-      else if(profile.secondary.indexOf(tag)>=0)s+=1.5;
-      /* Si un contenido se ha trabajado demasiado, pierde prioridad. */
-      s-=Math.min(6,Number(seasonCounts[tag]||0)*0.35);
-    });
-
     const f=family(e); if(f>=0)s-=Number(recent[f]||0)*3;
     if(session===0 && /(posesion|rondo|pase|control|apoyo)/.test(t))s+=2;
     if(session===1 && /(opos|duelo|1x1|2x1|3x2|transicion|presion|finaliz)/.test(t))s+=3;
     return s;
   }
 
-  function pick(block,p,goal,used,recent,session,week,seasonCounts){
+  function pick(block,p,goal,used,recent,session){
     const pool=allExercises();
-    let cand=pool.map(e=>({e,s:score(e,block,p,goal,used,recent,session,week,seasonCounts)})).sort((a,b)=>b.s-a.s);
+    let cand=pool.map(e=>({e,s:score(e,block,p,goal,used,recent,session)})).sort((a,b)=>b.s-a.s);
     const fresh=cand.filter(x=>!used.has(keyExercise(x.e)));
     cand=fresh.length?fresh:cand;
     if(!cand.length)return {name:'Tarea contextual',objective:'Aplicación del contenido',execution:'Adaptar espacio y reglas al nivel del grupo.',id:null};
@@ -5187,11 +5123,11 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     </details>`;
   }
 
-  function makeSession(date,week,dayIndex,pf,opts,used,recent,seasonCounts){
-    const a=pick('minigame',pf,pf.goal,used,recent,dayIndex,week,seasonCounts);
-    const b=pick('possession',pf,pf.goal,used,recent,dayIndex,week,seasonCounts);
-    const c=pick('technical',pf,pf.goal,used,recent,dayIndex,week,seasonCounts);
-    const d=pick('finishing',pf,pf.goal,used,recent,dayIndex,week,seasonCounts);
+  function makeSession(date,week,dayIndex,pf,opts,used,recent){
+    const a=pick('minigame',pf,pf.goal,used,recent,dayIndex);
+    const b=pick('possession',pf,pf.goal,used,recent,dayIndex);
+    const c=pick('technical',pf,pf.goal,used,recent,dayIndex);
+    const d=pick('finishing',pf,pf.goal,used,recent,dayIndex);
     const rows=[
       {block:'mobility',time:"10 min",name:'Movilidad articular',objective:'Preparar el cuerpo y mejorar la calidad de movimiento',desc:'Movilidad dinámica y activación específica antes del trabajo con balón.'},
       {block:'minigame',time:"5 min",name:a.name,objective:a.objective,desc:a.execution,exercise:a},
@@ -5228,7 +5164,7 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
                   </div>
                   <details class="fc-rebuild-details">
                     <summary>▼ Ver objetivo y detalles</summary>
-                    <div class="fc-rebuild-details-body">${exerciseDetailHtml(r)}</div>
+                    <div class="fc-rebuild-details-body"><b>Objetivo:</b> ${esc(r.objective)}<br>${esc(r.desc)}</div>
                   </details>
                   ${r.manualImage?'<details class="fc-manual-image-details"><summary>▼ Ver imagen del ejercicio</summary><img class="fc-manual-image" src="'+esc(r.manualImage)+'" alt="Esquema de '+esc(r.name)+'"></details>':scheme(r)}
                 </div>
@@ -5250,12 +5186,11 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
       const pf=phase(week,opts.goal); pf.goal=opts.goal;
       const hist=load();
       const used=new Set(), recent=recentCounts(hist,week);
-      const seasonCounts=seasonContentCounts(hist,week);
       // Do not reuse exercises from prior weeks, except mobility and fixed match.
       hist.filter(w=>Number(w.weekNo)!==week).forEach(w=>A(w.sessions).forEach(s=>A(s.rows).forEach(r=>{
         if(r.exercise)used.add(keyExercise(r.exercise));
       })));
-      const sessions=[makeSession(dates[0],week,0,pf,opts,used,recent,seasonCounts),makeSession(dates[1],week,1,pf,opts,used,recent,seasonCounts)];
+      const sessions=[makeSession(dates[0],week,0,pf,opts,used,recent),makeSession(dates[1],week,1,pf,opts,used,recent)];
       const w={weekNo:week,phase:pf.name,focus:pf.focus,options:opts,createdAt:new Date().toISOString(),sessions};
       const merged=hist.filter(x=>Number(x.weekNo)!==week); merged.push(w);merged.sort((a,b)=>a.weekNo-b.weekNo);save(merged);
       window.__infantilWeek=w;render(merged);
@@ -5275,8 +5210,7 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     const used=new Set();
     w.sessions.forEach(s=>s.rows.forEach(r=>{if(r.exercise&&r!==row)used.add(keyExercise(r.exercise))}));
     const recent=recentCounts(hist,week);
-    const seasonCounts=seasonContentCounts(hist,week);
-    const fresh=pick(row.block,pf,pf.goal,used,recent,si,week,seasonCounts);
+    const fresh=pick(row.block,pf,pf.goal,used,recent,si);
     row.exercise=fresh;row.name=fresh.name;row.objective=fresh.objective;row.desc=fresh.execution;
     save(hist);window.__infantilWeek=w;render(hist);
   };
