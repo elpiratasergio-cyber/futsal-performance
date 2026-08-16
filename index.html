@@ -388,7 +388,7 @@ header .inner,.wrap{width:100%}
     sessions.forEach(session=>{
       // Do not touch the 20-minute generator.
       const sessionText=(session.innerText||'').toLowerCase();
-      if(sessionText.includes('20 min') || sessionText.includes('20\\'')) return;
+      if(sessionText.includes('20 min') || sessionText.includes("20'")) return;
 
       const cards=Array.from(session.querySelectorAll(
         '.exercise-card,.exercise-item,.task-card,.session-exercise,.block,.exercise,[data-exercise],li'
@@ -4640,8 +4640,7 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
               var canChange=ri>0 && ri<5 && r.exercise;
               var changeBtn=canChange?'<div class="fc-exercise-actions"><button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace('+w.weekNo+','+si+','+ri+');event.stopPropagation()">🔄 Automático</button><button class="week-manual fc-rebuild-manual" onclick="fcManualExercise('+w.weekNo+','+si+','+ri+');event.stopPropagation()">✏️ Manual</button></div>':'';
               return '<div class="fc-rebuild-exercise '+(r.block==='match'?'fc-rebuild-match':'')+'">'+
-                '<div class="fc-rebuild-ex-title"><strong>'+escapeHtml(r.name)+'</strong><span class="time">'+escapeHtml(r.time)+'</span></div>'+
-                changeBtn+
+                '<div class="fc-rebuild-ex-title"><strong>'+escapeHtml(r.name)+'</strong><div class="fc-title-right">'+(canChange?changeBtn:'')+'<span class="time">'+escapeHtml(r.time)+'</span></div></div>'+
                 '<details class="fc-rebuild-details"><summary>▼ Ver objetivo y detalles</summary>'+
                   '<div class="fc-rebuild-details-body">'+exerciseDetailHtml(r)+'</div>'+
                 '</details>'+
@@ -4886,7 +4885,12 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
 .fc-title-right .fc-exercise-actions button{margin:0!important}
 .fc-rebuild-details{margin-top:7px}
 .fc-rebuild-details summary{cursor:pointer;color:#173f31;font-weight:800;font-size:13px}
-.fc-rebuild-details-body{margin-top:7px;padding:10px;border-radius:10px;background:#f1f6f3;font-size:13px;line-height:1.45}
+.fc-rebuild-details-body{margin-top:9px;padding:12px;border-radius:12px;background:#f1f6f3;font-size:13px;line-height:1.5}
+.fc-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.fc-detail-box{background:#fff;border:1px solid #dce8e1;border-radius:10px;padding:10px 11px;min-width:0}
+.fc-detail-box b{display:block;color:#173f31;font-size:13px;margin-bottom:3px}
+.fc-detail-box p{margin:0;color:#34483f}
+@media(max-width:700px){.fc-detail-grid{grid-template-columns:1fr}}
 .fc-rebuild-scheme{margin-top:8px}
 .fc-rebuild-scheme summary{cursor:pointer;color:#173f31;font-weight:800;font-size:13px}
 .fc-rebuild-scheme svg{width:100%;height:auto;display:block;margin-top:8px;border-radius:10px}
@@ -5137,43 +5141,6 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
       {block:'match',time:"30 min",name:'PARTIDO',objective:'Transferir lo trabajado al juego real y favorecer la toma de decisiones',desc:'Partido final de la sesión. Aplicar el contenido trabajado durante la sesión.',exercise:null}
     ];
     return {date:iso(date),dateLabel:label(date),day:dayIndex===0?'Martes':'Viernes',phase:pf.name,focus:pf.focus,rows};
-  }
-
-  function render(history){
-    const el=document.getElementById('seasonWeeks'); if(!el)return;
-    if(!history.length){el.innerHTML='<div class="empty">Todavía no hay semanas generadas.</div>';return}
-    el.innerHTML=history.sort((a,b)=>a.weekNo-b.weekNo).map((w,wi)=>`
-      <details class="week-card" ${wi===history.length-1?'open':''}>
-        <summary><span>SEMANA ${w.weekNo} · ${esc(w.sessions[0].dateLabel)} — ${esc(w.sessions[1].dateLabel)}</span><span class="week-meta">2 sesiones · ${esc(w.phase)}</span></summary>
-        <div class="week-body">
-          <div class="season-note"><b>Enfoque:</b> ${esc(w.focus.join(' · '))}</div>
-          ${w.sessions.map((s,si)=>`
-            <div class="fc-rebuild-day">
-              <div class="fc-rebuild-day-title"><span>${s.day.toUpperCase()}</span><span class="fc-rebuild-day-date">${esc(s.dateLabel)}</span></div>
-              ${s.rows.map((r,ri)=>`
-                <div class="fc-rebuild-exercise ${r.block==='match'?'fc-rebuild-match':''}">
-                  <div class="fc-rebuild-ex-title">
-                    <strong>${esc(r.name)}</strong>
-                    <div class="fc-title-right">
-                      ${r.block!=='match'?`<div class="fc-exercise-actions">
-                        <button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace(${w.weekNo},${si},${ri});event.stopPropagation()">🔄 Automático</button>
-                        <button class="week-manual fc-rebuild-manual" onclick="fcManualExercise(${w.weekNo},${si},${ri});event.stopPropagation()">✏️ Manual</button>
-                      </div>`:''}
-                      <span class="time">${esc(r.time)}</span>
-                    </div>
-                  </div>
-                  <details class="fc-rebuild-details">
-                    <summary>▼ Ver objetivo y detalles</summary>
-                    <div class="fc-rebuild-details-body"><b>Objetivo:</b> ${esc(r.objective)}<br>${esc(r.desc)}</div>
-                  </details>
-                  ${r.manualImage?'<details class="fc-manual-image-details"><summary>▼ Ver imagen del ejercicio</summary><img class="fc-manual-image" src="'+esc(r.manualImage)+'" alt="Esquema de '+esc(r.name)+'"></details>':scheme(r)}
-                </div>
-              `).join('')}
-            </div>
-          `).join('')}
-          <div class="week-card-actions"><button class="danger small" onclick="event.preventDefault();event.stopPropagation();fcRebuildDelete(${w.weekNo})">🗑️ Eliminar semana</button></div>
-        </div>
-      </details>`).join('');
   }
 
   function generate(){
