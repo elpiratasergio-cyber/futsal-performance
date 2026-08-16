@@ -456,7 +456,7 @@ header .inner,.wrap{width:100%}
 
 
 <style id="fc-manual-exercise-style">
-.fc-exercise-actions{display:flex;justify-content:flex-end;gap:8px;align-items:center;margin:8px 0 5px}
+.fc-exercise-actions{display:flex;justify-content:flex-end;gap:8px;align-items:center;margin:0}
 .fc-exercise-actions button{margin:0!important}
 .week-manual{background:#fff7e8!important;color:#8a4b00!important;border:1px solid #f1c27d!important}
 .fc-manual-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:18px}
@@ -4831,9 +4831,12 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
   padding:13px 14px;margin:10px 0;
 }
 .fc-rebuild-ex-title{
-  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
 }
-.fc-rebuild-ex-title strong{font-size:16px}
+.fc-rebuild-ex-title strong{font-size:16px;flex:1;min-width:0}
+.fc-title-right{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-shrink:0}
+.fc-title-right .fc-exercise-actions{margin:0;display:flex;align-items:center;gap:8px}
+.fc-title-right .fc-exercise-actions button{margin:0!important}
 .fc-rebuild-details{margin-top:7px}
 .fc-rebuild-details summary{cursor:pointer;color:#173f31;font-weight:800;font-size:13px}
 .fc-rebuild-details-body{margin-top:7px;padding:10px;border-radius:10px;background:#f1f6f3;font-size:13px;line-height:1.45}
@@ -4842,6 +4845,29 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
 .fc-rebuild-scheme svg{width:100%;height:auto;display:block;margin-top:8px;border-radius:10px}
 .fc-rebuild-match{border:2px solid #173f31;background:#f5faf7}
 .fc-rebuild-match .fc-rebuild-ex-title strong{font-size:19px}
+.fc-delete-overlay{
+  position:fixed;inset:0;background:rgba(9,24,18,.58);display:flex;align-items:center;justify-content:center;
+  z-index:100000;padding:20px;backdrop-filter:blur(3px);
+}
+.fc-delete-modal{
+  width:min(430px,100%);background:#fff;border-radius:20px;padding:24px 24px 20px;
+  box-shadow:0 20px 60px rgba(0,0,0,.25);text-align:center;border:1px solid #dce8e1;
+}
+.fc-delete-icon{font-size:34px;margin-bottom:4px}
+.fc-delete-modal h3{margin:0 0 10px;color:#173f31;font-size:22px}
+.fc-delete-modal p{margin:7px 0;color:#34483f;font-size:15px;line-height:1.4}
+.fc-delete-note{font-size:13px!important;color:#718078!important}
+.fc-delete-actions{display:flex;justify-content:center;gap:12px;margin-top:20px}
+.fc-delete-actions button{
+  border:0;border-radius:11px;padding:11px 18px;font-weight:900;cursor:pointer;font-size:14px;
+}
+.fc-delete-no{background:#edf3f0;color:#173f31}
+.fc-delete-yes{background:#c62828;color:#fff}
+@media(max-width:650px){
+  .fc-rebuild-ex-title{align-items:flex-start}
+  .fc-title-right{flex-direction:column;align-items:flex-end;gap:6px}
+  .fc-title-right .fc-exercise-actions{flex-wrap:wrap;justify-content:flex-end}
+}
 .fc-rebuild-change{margin-top:8px;margin-bottom:7px;display:flex;width:max-content}.fc-rebuild-details{margin-top:0}.fc-rebuild-day-title{font-size:38px}.fc-rebuild-day-date{font-size:18px}@media(max-width:650px){.fc-rebuild-day-title{font-size:30px;padding:16px 18px}.fc-rebuild-day-date{font-size:15px}}
 </style>
 <script id="fc-infantil-rebuild">
@@ -5079,11 +5105,16 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
               <div class="fc-rebuild-day-title"><span>${s.day.toUpperCase()}</span><span class="fc-rebuild-day-date">${esc(s.dateLabel)}</span></div>
               ${s.rows.map((r,ri)=>`
                 <div class="fc-rebuild-exercise ${r.block==='match'?'fc-rebuild-match':''}">
-                  <div class="fc-rebuild-ex-title"><strong>${esc(r.name)}</strong><span class="time">${esc(r.time)}</span></div>
-                  ${r.block!=='match'?`<div class="fc-exercise-actions">
-  <button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace(${w.weekNo},${si},${ri});event.stopPropagation()">🔄 Automático</button>
-  <button class="week-manual fc-rebuild-manual" onclick="fcManualExercise(${w.weekNo},${si},${ri});event.stopPropagation()">✏️ Manual</button>
-</div>`:''}
+                  <div class="fc-rebuild-ex-title">
+                    <strong>${esc(r.name)}</strong>
+                    <div class="fc-title-right">
+                      ${r.block!=='match'?`<div class="fc-exercise-actions">
+                        <button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace(${w.weekNo},${si},${ri});event.stopPropagation()">🔄 Automático</button>
+                        <button class="week-manual fc-rebuild-manual" onclick="fcManualExercise(${w.weekNo},${si},${ri});event.stopPropagation()">✏️ Manual</button>
+                      </div>`:''}
+                      <span class="time">${esc(r.time)}</span>
+                    </div>
+                  </div>
                   <details class="fc-rebuild-details">
                     <summary>▼ Ver objetivo y detalles</summary>
                     <div class="fc-rebuild-details-body"><b>Objetivo:</b> ${esc(r.objective)}<br>${esc(r.desc)}</div>
@@ -5198,9 +5229,30 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
   };
 
   window.fcRebuildDelete=function(week){
-    if(!confirm('¿Eliminar únicamente la Semana '+week+'?'))return;
-    const h=load().filter(w=>Number(w.weekNo)!==Number(week));save(h);
+    const old=document.getElementById('fcDeleteWeekModal'); if(old)old.remove();
+    const modal=document.createElement('div');
+    modal.id='fcDeleteWeekModal';
+    modal.className='fc-delete-overlay';
+    modal.innerHTML=`
+      <div class="fc-delete-modal" role="dialog" aria-modal="true" aria-labelledby="fcDeleteTitle">
+        <div class="fc-delete-icon">🗑️</div>
+        <h3 id="fcDeleteTitle">Eliminar semana</h3>
+        <p>¿Seguro que quieres eliminar únicamente la <strong>Semana ${week}</strong>?</p>
+        <p class="fc-delete-note">Las demás semanas permanecerán guardadas.</p>
+        <div class="fc-delete-actions">
+          <button class="fc-delete-no" onclick="document.getElementById('fcDeleteWeekModal')?.remove()">NO</button>
+          <button class="fc-delete-yes" onclick="fcConfirmDeleteWeek(${week})">SÍ, ELIMINAR</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click',function(e){if(e.target===modal)modal.remove();});
+  };
+
+  window.fcConfirmDeleteWeek=function(week){
+    const h=load().filter(w=>Number(w.weekNo)!==Number(week));
+    save(h);
     if(window.__infantilWeek&&Number(window.__infantilWeek.weekNo)===Number(week))window.__infantilWeek=null;
+    document.getElementById('fcDeleteWeekModal')?.remove();
     render(h);
   };
 
