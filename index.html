@@ -5143,6 +5143,48 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     return {date:iso(date),dateLabel:label(date),day:dayIndex===0?'Martes':'Viernes',phase:pf.name,focus:pf.focus,rows};
   }
 
+  // Detalle local del motor reconstruido.
+  // Este motor vive en un IIFE independiente, por lo que no puede depender
+  // de exerciseDetailHtml definido en otro bloque de script.
+  function exerciseDetailHtml(row){
+    var e=row&&row.exercise&&typeof row.exercise==='object'?row.exercise:{};
+    var name=row&&row.name?row.name:(e.name||'Ejercicio');
+    var objective=row&&row.objective?row.objective:(e.objective||'Aplicación del contenido trabajado.');
+    var execution=row&&row.desc?row.desc:(e.execution||e.desc||'Realizar la tarea respetando las reglas y adaptando el espacio al nivel del grupo.');
+    var material=e.material||row.material||'Balones, conos y petos según la tarea.';
+    var players=e.players||row.players||'Según asistencia.';
+    var dose=e.dose||row.dose||row.time||'Según la sesión.';
+    var type=e.type||row.type||'';
+    var text=(name+' '+type+' '+execution).toLowerCase();
+    var setup='Delimitar el espacio antes de comenzar, colocar el material y distribuir a los jugadores para que la tarea pueda empezar rápidamente. Explicar primero la dinámica y después introducir las reglas progresivamente.';
+    if(/rondo|posesi|conserv/.test(text)){
+      setup='Delimitar un espacio de posesión con '+material.toLowerCase()+'. Distribuir a los jugadores manteniendo líneas de pase y suficiente separación. Iniciar con la estructura básica y añadir las restricciones después de comprobar que todos entienden la tarea.';
+    }else if(/1x1|duelo|2x1|3x2|superioridad|inferioridad/.test(text)){
+      setup='Marcar una zona de trabajo con '+material.toLowerCase()+'. Organizar los turnos para que los jugadores entren y salgan con rapidez. Colocar atacantes y defensores según la situación planteada y preparar balones de continuidad.';
+    }else if(/finaliz|tiro|remate|porter/.test(text)){
+      setup='Preparar la zona de finalización con '+material.toLowerCase()+' y orientar las acciones hacia la portería. Dejar varios balones preparados para evitar tiempos muertos y organizar los turnos para que todos participen de forma continua.';
+    }else if(row&&row.block==='match'){
+      setup='Utilizar la pista completa, formar los equipos y comenzar el partido aplicando una condición relacionada con el objetivo de la sesión.';
+    }
+    var keys='Observar la calidad técnica, la toma de decisiones y la intensidad adecuada para la edad. Corregir con mensajes breves y concretos, evitando detener continuamente la tarea.';
+    if(/control|pase/.test(text)) keys='Insistir en el perfil corporal, control orientado, pase al pie adecuado y movilidad inmediata después de pasar. Buscar que el jugador levante la cabeza antes de recibir.';
+    if(/posesi|rondo|conserv/.test(text)) keys='Buscar apoyos constantes, líneas de pase, amplitud y velocidad de circulación. Premiar la movilidad después del pase y la capacidad de jugar lejos de la presión.';
+    if(/finaliz|tiro|remate/.test(text)) keys='Priorizar la orientación corporal, el último pase, la elección de superficie de golpeo y la finalización rápida cuando aparezca ventaja.';
+    if(/1x1|duelo/.test(text)) keys='Fomentar el cambio de ritmo, la protección del balón, el engaño previo y la decisión de superar o combinar según la posición del defensor.';
+    var progression='Comenzar con la versión más sencilla, asegurar comprensión y aumentar progresivamente la dificultad reduciendo espacio, limitando toques, aumentando oposición o añadiendo una condición de puntuación.';
+    var series='Mantener el tiempo asignado al bloque y organizar repeticiones cortas para que haya mucha participación. Alternar pausas breves de explicación con periodos de trabajo continuo.';
+    return '<div class="fc-detail-grid">'+
+      '<div class="fc-detail-box"><b>🎯 Objetivo</b><p>'+esc(objective)+'</p></div>'+
+      '<div class="fc-detail-box"><b>📋 Cómo se realiza</b><p>'+esc(execution)+'</p></div>'+
+      '<div class="fc-detail-box"><b>📐 Montaje</b><p>'+esc(setup)+'</p></div>'+
+      '<div class="fc-detail-box"><b>🧰 Material</b><p>'+esc(material)+'</p></div>'+
+      '<div class="fc-detail-box"><b>👥 Organización</b><p>'+esc(players)+'</p></div>'+
+      '<div class="fc-detail-box"><b>⏱️ Series y repeticiones</b><p>'+esc(dose)+' · '+esc(series)+'</p></div>'+
+      '<div class="fc-detail-box"><b>🔑 Claves del entrenador</b><p>'+esc(keys)+'</p></div>'+
+      '<div class="fc-detail-box"><b>📈 Progresión</b><p>'+esc(progression)+'</p></div>'+
+      '</div>';
+  }
+
   function renderSeason(history){
     const el=document.getElementById('seasonWeeks');
     if(!el)return;
