@@ -2957,11 +2957,11 @@ header .inner,.wrap{width:100%}
       La web mantiene esta lógica y reajusta el partido si cambias la duración total. La movilidad de 10' se conserva aquí porque forma parte de la planificación infantil que me pasaste.
     </div>
     <div class="season-actions">
-      <button class="primary" onclick="generateInfantilWeek()">⚡ Generar semana</button>
-      <button class="secondary" onclick="saveInfantilWeek()">💾 Guardar semana</button>
-      <button class="secondary" onclick="loadInfantilWeek()">↻ Cargar semana guardada</button>
-      <button class="secondary" onclick="printInfantilWeek()">🖨 Imprimir / PDF</button>
-      <button class="danger" onclick="clearInfantilWeeks()">Vaciar todas</button>
+      <button type="button" id="btnGenerateInfantilWeek" class="primary">⚡ Generar semana</button>
+      <button type="button" id="btnSaveInfantilWeek" class="secondary">💾 Guardar semana</button>
+      <button type="button" id="btnLoadInfantilWeek" class="secondary">↻ Cargar semana guardada</button>
+      <button type="button" id="btnPrintInfantilWeek" class="secondary">🖨 Imprimir / PDF</button>
+      <button type="button" id="btnClearInfantilWeeks" class="danger">Vaciar todas</button>
     </div>
     <div id="seasonSummary"></div>
   </div>
@@ -5263,6 +5263,165 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     if(tab==='season')setTimeout(()=>render(load()),50);
   };
   document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>render(load()),100));
+})();
+</script>
+
+<script>
+/* ===== CONTROLES DE TEMPORADA — VERSIÓN ROBUSTA =====
+   Los botones se conectan por addEventListener al final del documento para
+   evitar conflictos entre los motores históricos de la página.
+*/
+(function(){
+  'use strict';
+  var KEY='futsalPerformanceInfantilWeeklyV3';
+  var START_WEEK=1;
+  var MAX_WEEK=40;
+
+  function readHistory(){
+    try{
+      var v=JSON.parse(localStorage.getItem(KEY)||'[]');
+      return Array.isArray(v)?v:[];
+    }catch(e){ return []; }
+  }
+  function writeHistory(v){
+    localStorage.setItem(KEY,JSON.stringify(v||[]));
+  }
+  function currentWeekNumber(){
+    var el=document.getElementById('seasonWeek');
+    return Math.max(1,Math.min(MAX_WEEK,Number(el&&el.value)||1));
+  }
+  function setWeek(n){
+    var el=document.getElementById('seasonWeek');
+    if(el)el.value=Math.max(1,Math.min(MAX_WEEK,Number(n)||1));
+  }
+  function redraw(){
+    var h=readHistory();
+    if(typeof window.render==='function')window.render(h);
+    else if(typeof window.renderWeeklyHistory==='function')window.renderWeeklyHistory();
+  }
+  function summary(text){
+    var el=document.getElementById('seasonSummary');
+    if(el)el.innerHTML='<div class="season-note">'+text+'</div>';
+  }
+
+  function saveCurrent(){
+    var week=window.__infantilWeek;
+    var selected=currentWeekNumber();
+    var history=readHistory();
+
+    if(!week || Number(week.weekNo)!==selected){
+      week=history.find(function(w){return Number(w.weekNo)===selected;});
+    }
+    if(!week){
+      alert('Genera primero la Semana '+selected+' y después pulsa «Guardar semana».');
+      return;
+    }
+
+    var merged=history.filter(function(w){return Number(w.weekNo)!==Number(week.weekNo);});
+    merged.push(week);
+    merged.sort(function(a,b){return Number(a.weekNo)-Number(b.weekNo);});
+    writeHistory(merged);
+    window.__infantilWeek=week;
+    redraw();
+
+    /* Dejamos preparada la semana siguiente para que el flujo sea:
+       guardar Semana 1 → Semana 2 → generar → guardar → Semana 3... */
+    var next=Math.min(MAX_WEEK,Number(week.weekNo)+1);
+    setWeek(next);
+    summary('Semana '+week.weekNo+' guardada correctamente. <b>Semana '+next+' preparada</b> para generar.');
+  }
+
+  function loadSelected(){
+    var history=readHistory();
+    if(!history.length){
+      alert('No hay semanas guardadas todavía.');
+      return;
+    }
+    var n=currentWeekNumber();
+    var week=history.find(function(w){return Number(w.weekNo)===n;});
+    if(!week){
+      alert('No existe una Semana '+n+' guardada. Genera y guarda esa semana primero.');
+      return;
+    }
+    window.__infantilWeek=week;
+    redraw();
+    summary('Semana '+n+' cargada correctamente.');
+  }
+
+  function printSelected(){
+    var history=readHistory();
+    var n=currentWeekNumber();
+    var week=history.find(function(w){return Number(w.weekNo)===n;}) || (window.__infantilWeek && Number(window.__infantilWeek.weekNo)===n ? window.__infantilWeek : null);
+    if(!week){
+      alert('Genera o guarda la Semana '+n+' antes de imprimir.');
+      return;
+    }
+    window.__infantilPrintWeek=week;
+    window.print();
+  }
+
+  function clearAll(){
+    if(!confirm('¿Vaciar todas las semanas guardadas?'))return;
+    writeHistory([]);
+    window.__infantilWeek=null;
+    setWeek(1);
+    redraw();
+    summary('No hay semanas guardadas. La Semana 1 está preparada para generar.');
+  }
+
+  function generate(){
+    if(typeof window.generateInfantilWeek==='function')window.generateInfantilWeek();
+    else alert('El generador de temporada no está disponible.');
+  }
+
+  function nextWeek(){
+    var n=Math.min(MAX_WEEK,currentWeekNumber()+1);
+    setWeek(n);
+    var h=readHistory();
+    var found=h.find(function(w){return Number(w.weekNo)===n;});
+    if(found){
+      window.__infantilWeek=found;
+      redraw();
+      summary('Semana '+n+' cargada.');
+    }else{
+      summary('Semana '+n+' preparada para generar. Pulsa <b>Generar semana</b>.');
+    }
+  }
+
+  function prevWeek(){
+    var n=Math.max(1,currentWeekNumber()-1);
+    setWeek(n);
+    var h=readHistory();
+    var found=h.find(function(w){return Number(w.weekNo)===n;});
+    if(found){window.__infantilWeek=found;redraw();summary('Semana '+n+' cargada.');}
+    else summary('Semana '+n+' todavía no está generada.');
+  }
+
+  function bind(){
+    var pairs=[
+      ['btnGenerateInfantilWeek',generate],
+      ['btnSaveInfantilWeek',saveCurrent],
+      ['btnLoadInfantilWeek',loadSelected],
+      ['btnPrintInfantilWeek',printSelected],
+      ['btnClearInfantilWeeks',clearAll]
+    ];
+    pairs.forEach(function(pair){
+      var el=document.getElementById(pair[0]);
+      if(!el)return;
+      el.onclick=function(e){e.preventDefault();e.stopPropagation();pair[1]();};
+    });
+
+    /* Reforzamos los botones de navegación semanal. */
+    document.querySelectorAll('[onclick*="changeInfantilWeek(-1)"]').forEach(function(el){
+      el.onclick=function(e){e.preventDefault();e.stopPropagation();prevWeek();};
+    });
+    document.querySelectorAll('[onclick*="changeInfantilWeek(1)"]').forEach(function(el){
+      el.onclick=function(e){e.preventDefault();e.stopPropagation();nextWeek();};
+    });
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);
+  else bind();
 })();
 </script>
 
