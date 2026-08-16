@@ -5143,6 +5143,55 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     return {date:iso(date),dateLabel:label(date),day:dayIndex===0?'Martes':'Viernes',phase:pf.name,focus:pf.focus,rows};
   }
 
+  function renderSeason(history){
+    const el=document.getElementById('seasonWeeks');
+    if(!el)return;
+    if(!Array.isArray(history)||!history.length){
+      el.innerHTML='<div class="empty">Todavía no hay semanas generadas.</div>';
+      return;
+    }
+    const ordered=history.slice().sort((a,b)=>Number(a.weekNo)-Number(b.weekNo));
+    el.innerHTML=ordered.map((w,wi)=>{
+      const sessions=A(w.sessions);
+      const first=sessions[0]||{};
+      const last=sessions[sessions.length-1]||{};
+      return `<details class="week-card" ${wi===ordered.length-1?'open':''}>
+        <summary><span>SEMANA ${Number(w.weekNo)} · ${esc(first.dateLabel||'')} — ${esc(last.dateLabel||'')}</span><span class="week-meta">${sessions.length} sesiones · ${esc(w.phase||'')}</span></summary>
+        <div class="week-body">
+          <div class="season-note"><b>Enfoque:</b> ${esc(A(w.focus).join(' · '))}</div>
+          ${sessions.map((s,si)=>`
+            <div class="fc-rebuild-day">
+              <div class="fc-rebuild-day-title"><span>${esc(String(s.day|| (si===0?'Martes':'Viernes')).toUpperCase())}</span><span class="fc-rebuild-day-date">${esc(s.dateLabel||'')}</span></div>
+              ${A(s.rows).map((r,ri)=>{
+                const isMatch=r.block==='match';
+                const canChange=!isMatch && r.block!=='mobility' && !!r.exercise;
+                const actions=canChange?`<div class="fc-exercise-actions">
+                  <button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace(${Number(w.weekNo)},${si},${ri});event.stopPropagation()">🔄 Automático</button>
+                  <button class="week-manual fc-rebuild-manual" onclick="fcManualExercise(${Number(w.weekNo)},${si},${ri});event.stopPropagation()">✏️ Manual</button>
+                </div>`:'';
+                const visual=r.manualImage
+                  ? `<details class="fc-manual-image-details"><summary>▼ Ver imagen del ejercicio</summary><img class="fc-manual-image" src="${esc(r.manualImage)}" alt="Esquema de ${esc(r.name||'ejercicio')}"></details>`
+                  : scheme(r);
+                return `<div class="fc-rebuild-exercise ${isMatch?'fc-rebuild-match':''}">
+                  <div class="fc-rebuild-ex-title"><strong>${esc(r.name||'Ejercicio')}</strong><div class="fc-title-right">${actions}<span class="time">${esc(r.time||'')}</span></div></div>
+                  <details class="fc-rebuild-details"><summary>▼ Ver objetivo y detalles</summary><div class="fc-rebuild-details-body">${exerciseDetailHtml(r)}</div></details>
+                  ${visual}
+                </div>`;
+              }).join('')}
+            </div>
+          `).join('')}
+          <div class="week-card-actions"><button class="danger small" onclick="event.preventDefault();event.stopPropagation();fcRebuildDelete(${Number(w.weekNo)})">🗑️ Eliminar semana</button></div>
+        </div>
+      </details>`;
+    }).join('');
+  }
+
+  /* Exponemos el render del motor reconstruido para que los botones robustos
+     y cualquier actualización posterior utilicen exactamente este renderer. */
+  window.render=renderSeason;
+
+  window.renderInfantilSeason=renderSeason;
+
   function generate(){
     try{
       const inp=document.getElementById('seasonWeek');
@@ -5160,7 +5209,7 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
       const sessions=[makeSession(dates[0],week,0,pf,opts,used,recent),makeSession(dates[1],week,1,pf,opts,used,recent)];
       const w={weekNo:week,phase:pf.name,focus:pf.focus,options:opts,createdAt:new Date().toISOString(),sessions};
       const merged=hist.filter(x=>Number(x.weekNo)!==week); merged.push(w);merged.sort((a,b)=>a.weekNo-b.weekNo);save(merged);
-      window.__infantilWeek=w;render(merged);
+      window.__infantilWeek=w;renderSeason(merged);
       const sum=document.getElementById('seasonSummary');
       if(sum)sum.innerHTML=`<div class="season-summary"><div class="season-stat"><b>${week}</b><span>semana</span></div><div class="season-stat"><b>2</b><span>sesiones</span></div><div class="season-stat"><b>90'</b><span>por sesión</span></div><div class="season-stat"><b>${opts.players}</b><span>jugadores</span></div></div>`;
     }catch(e){alert('No se ha podido generar la semana.\\n\\n'+e.message)}
@@ -5179,7 +5228,7 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     const recent=recentCounts(hist,week);
     const fresh=pick(row.block,pf,pf.goal,used,recent,si);
     row.exercise=fresh;row.name=fresh.name;row.objective=fresh.objective;row.desc=fresh.execution;
-    save(hist);window.__infantilWeek=w;render(hist);
+    save(hist);window.__infantilWeek=w;renderSeason(hist);
   };
 
 
@@ -5233,7 +5282,7 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
       row.exercise.execution=row.desc;
       row.exercise.manual=true;
       if(img){row.manualImage=img;row.exercise.manualImage=img;}
-      save(hist);window.__infantilWeek=w;document.getElementById('fcManualModal')?.remove();render(hist);
+      save(hist);window.__infantilWeek=w;document.getElementById('fcManualModal')?.remove();renderSeason(hist);
     };
     if(file){
       const reader=new FileReader();
@@ -5267,16 +5316,16 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     save(h);
     if(window.__infantilWeek&&Number(window.__infantilWeek.weekNo)===Number(week))window.__infantilWeek=null;
     document.getElementById('fcDeleteWeekModal')?.remove();
-    render(h);
+    renderSeason(h);
   };
 
   // Ensure the season tab always uses the rebuilt renderer.
   const oldSwitch=window.switchMainTab;
   window.switchMainTab=function(tab){
     if(typeof oldSwitch==='function')oldSwitch(tab);
-    if(tab==='season')setTimeout(()=>render(load()),50);
+    if(tab==='season')setTimeout(()=>renderSeason(load()),50);
   };
-  document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>render(load()),100));
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>renderSeason(load()),100));
 })();
 </script>
 
