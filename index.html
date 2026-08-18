@@ -165,6 +165,34 @@ header .inner,.wrap{width:100%}
 /* Evita que diagramas SVG anchos deformen las tarjetas en pantallas pequeñas */
 .card svg,.modalCard svg{max-width:100%;height:auto}
 
+
+/* Desplegables principales del Generador 20' */
+.top-collapsible-panel{padding:0;overflow:hidden}
+.main-section-details{width:100%}
+.main-section-details>summary{list-style:none}
+.main-section-details>summary::-webkit-details-marker{display:none}
+.main-section-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;cursor:pointer;font-size:20px;font-weight:900;user-select:none;background:#fff}
+.main-section-summary:hover{background:#f7fbf8}
+.main-section-chevron{font-size:24px;line-height:1;transition:transform .18s ease;color:#17643a}
+.main-section-details[open] .main-section-chevron{transform:rotate(180deg)}
+.main-section-body{padding:0 20px 20px}
+/* Agrupación mensual del historial */
+.history-month-list{display:grid;gap:10px;margin-top:12px}
+.history-month{border:1px solid #cfe0d6;border-radius:13px;background:#fbfefc;overflow:hidden}
+.history-month>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 14px;cursor:pointer;font-weight:900;color:#17643a;background:#f1f8f3}
+.history-month>summary::-webkit-details-marker{display:none}
+.history-month>summary:hover{background:#e8f4ec}
+.history-month-title{display:flex;align-items:center;gap:8px}
+.history-month-count{font-size:12px;font-weight:800;color:#64756e}
+.history-month-chevron{font-size:20px;line-height:1;transition:transform .18s ease}
+.history-month[open] .history-month-chevron{transform:rotate(180deg)}
+.history-month-body{padding:10px}
+.history-month-body .history-card{margin:0}
+@media(max-width:560px){
+  .main-section-summary{font-size:18px;padding:15px}
+  .main-section-body{padding:0 12px 14px}
+}
+
 /* ===== HISTORIAL DE SESIONES ===== */
 .history-panel{margin-top:16px}
 .history-toolbar{display:flex;flex-wrap:wrap;gap:9px;align-items:end}
@@ -486,38 +514,55 @@ header .inner,.wrap{width:100%}
   <button class="top-tab" id="tabSeasonBtn" onclick="switchMainTab('season')">📅 Temporada Infantil</button>
 </div>
 <div class="wrap" id="generatorTab">
-<section class="panel"><h2>Generador de 20' · 2 ejercicios</h2>
-<p class="hint">Genera exactamente 2 ejercicios de 10'. El primero será un juego inicial, rondo o tarea colectiva; el segundo será el estímulo principal. El calentamiento activo previo queda fuera del generador.</p>
-<div class="generator">
-<div><label>Objetivo</label><select id="goal"><option value="auto">Automático / equilibrado</option><option value="accel">Aceleración</option><option value="cod">Frenada + cambios de dirección</option><option value="power">Potencia / reactividad</option><option value="tech">Técnica + velocidad</option><option value="specific">Específico con balón</option><option value="react">Reacción + decisión</option><option value="mixed">Mixto</option></select></div>
-<div><label>Jugadores</label><select id="players"><option>10</option><option>12</option><option>14</option><option>16</option><option>18</option></select></div>
-<div><label>Material</label><select id="equipment"><option value="normal">Normal</option><option value="low">Poco material</option><option value="ball">Prioridad balón</option></select></div>
-<div><label>Perfil</label><select id="profile"><option value="pre">Inicio / activación</option><option value="normal">Entrenamiento normal</option><option value="high">Alta intensidad</option></select></div>
-<button class="green" onclick="generate20()">⚡ Generar 20'</button></div><div id="generated" class="generated"></div></section>
+<section class="panel top-collapsible-panel">
+  <details class="main-section-details" open>
+    <summary class="main-section-summary">
+      <span>⚡ Generador de 20' · 2 ejercicios</span>
+      <span class="main-section-chevron">⌄</span>
+    </summary>
+    <div class="main-section-body">
+      <p class="hint">Genera exactamente 2 ejercicios de 10'. El primero será un juego inicial, rondo o tarea colectiva; el segundo será el estímulo principal. El calentamiento activo previo queda fuera del generador.</p>
+      <div class="generator">
+      <div><label>Objetivo</label><select id="goal"><option value="auto">Automático / equilibrado</option><option value="accel">Aceleración</option><option value="cod">Frenada + cambios de dirección</option><option value="power">Potencia / reactividad</option><option value="tech">Técnica + velocidad</option><option value="specific">Específico con balón</option><option value="react">Reacción + decisión</option><option value="mixed">Mixto</option></select></div>
+      <div><label>Jugadores</label><select id="players"><option>10</option><option>12</option><option>14</option><option>16</option><option>18</option></select></div>
+      <div><label>Material</label><select id="equipment"><option value="normal">Normal</option><option value="low">Poco material</option><option value="ball">Prioridad balón</option></select></div>
+      <div><label>Perfil</label><select id="profile"><option value="pre">Inicio / activación</option><option value="normal">Entrenamiento normal</option><option value="high">Alta intensidad</option></select></div>
+      <button class="green" onclick="generate20()">⚡ Generar 20'</button></div>
+      <div id="generated" class="generated"></div>
+    </div>
+  </details>
+</section>
 
-<section class="panel history-panel">
-  <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
-    <div>
-      <h2>📅 Historial de sesiones</h2>
-      <p class="hint">Las sesiones generadas quedan como borrador. Solo pasan al historial cuando pulsas «Guardar / comprobar sesión».</p>
+<section class="panel history-panel top-collapsible-panel">
+  <details class="main-section-details" open>
+    <summary class="main-section-summary">
+      <span>📅 Historial de sesiones</span>
+      <span class="main-section-chevron">⌄</span>
+    </summary>
+    <div class="main-section-body">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
+        <div>
+          <p class="hint">Las sesiones generadas quedan como borrador. Solo pasan al historial cuando pulsas «Guardar / comprobar sesión».</p>
+        </div>
+        <span class="history-badge">☁️ Supabase + copia local</span>
+      </div>
+      <div class="history-toolbar">
+        <div class="history-field small">
+          <label>Fecha de entrenamiento</label>
+          <input id="sessionDate" type="date">
+        </div>
+        <div class="history-field">
+          <label>Nombre de la sesión</label>
+          <input id="sessionName" placeholder="Se genera automáticamente">
+        </div>
+        <button class="green" onclick="saveCurrentGeneratedSession()">💾 Guardar / comprobar sesión</button>
+      </div>
+      <div id="historyStatus" class="history-status"></div>
+      <div id="historyList" class="history-list">
+        <div class="history-empty">Todavía no hay sesiones guardadas.</div>
+      </div>
     </div>
-    <span class="history-badge">☁️ Supabase + copia local</span>
-  </div>
-  <div class="history-toolbar">
-    <div class="history-field small">
-      <label>Fecha de entrenamiento</label>
-      <input id="sessionDate" type="date">
-    </div>
-    <div class="history-field">
-      <label>Nombre de la sesión</label>
-      <input id="sessionName" placeholder="Se genera automáticamente">
-    </div>
-    <button class="green" onclick="saveCurrentGeneratedSession()">💾 Guardar / comprobar sesión</button>
-  </div>
-  <div id="historyStatus" class="history-status"></div>
-  <div id="historyList" class="history-list">
-    <div class="history-empty">Todavía no hay sesiones guardadas.</div>
-  </div>
+  </details>
 </section>
 
 <section class="panel custom-panel">
@@ -3345,6 +3390,18 @@ window.addEventListener('load',()=>{
     return {...data,training_session_exercises:rows};
   }
 
+  function monthKey(date){
+    const m=String(date||'').match(/^(\d{4})-(\d{2})/);
+    return m?`${m[1]}-${m[2]}`:'sin-fecha';
+  }
+  function monthLabel(key){
+    if(key==='sin-fecha') return 'Sin fecha';
+    const [y,m]=key.split('-');
+    const d=new Date(Number(y),Number(m)-1,1);
+    const label=d.toLocaleDateString('es-ES',{month:'long',year:'numeric'});
+    return label.charAt(0).toUpperCase()+label.slice(1);
+  }
+
   function renderHistory(items){
     const root=document.getElementById('historyList');
     if(!root)return;
@@ -3353,7 +3410,7 @@ window.addEventListener('load',()=>{
       return;
     }
 
-    // Orden cronológico: sesión más antigua primero.
+    // Ordenamos primero por fecha y después agrupamos por mes.
     const ordered = [...items].sort((a,b)=>{
       const da=String(a.session_date||'9999-99-99');
       const db=String(b.session_date||'9999-99-99');
@@ -3361,37 +3418,61 @@ window.addEventListener('load',()=>{
       return String(a.created_at||'').localeCompare(String(b.created_at||''));
     });
 
-    root.innerHTML=ordered.map((s,idx)=>{
-      const exercises=(s.training_session_exercises||[])
-        .slice()
-        .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
-      const label=s.name || `SESIÓN ${idx+1}`;
-      const dateLabel=isoToEs(s.session_date||'');
-      const exerciseRows=exercises.map((e,i)=>{
-        const ex=EX.find(x=>Number(x.id)===Number(e.exercise_id));
-        return `<div class="history-exercise" onclick="event.preventDefault();event.stopPropagation();openExercise(${Number(e.exercise_id)})">
-          <span><b>${i+1}.</b> ${escHTML(ex?.name||('Ejercicio #'+e.exercise_id))}</span>
-          <b>${Number(e.minutes||10)}'</b>
-        </div>`;
+    const groups=new Map();
+    ordered.forEach(s=>{
+      const key=monthKey(s.session_date);
+      if(!groups.has(key))groups.set(key,[]);
+      groups.get(key).push(s);
+    });
+
+    const monthKeys=[...groups.keys()].sort((a,b)=>{
+      if(a==='sin-fecha')return 1;
+      if(b==='sin-fecha')return -1;
+      return b.localeCompare(a);
+    });
+
+    root.innerHTML='<div class="history-month-list">'+monthKeys.map((key,monthIndex)=>{
+      const monthItems=groups.get(key)||[];
+      const monthBody=monthItems.map((s,idx)=>{
+        const exercises=(s.training_session_exercises||[])
+          .slice()
+          .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+        const label=s.name || `SESIÓN ${idx+1}`;
+        const dateLabel=isoToEs(s.session_date||'');
+        const exerciseRows=exercises.map((e,i)=>{
+          const ex=EX.find(x=>Number(x.id)===Number(e.exercise_id));
+          return `<div class="history-exercise" onclick="event.preventDefault();event.stopPropagation();openExercise(${Number(e.exercise_id)})">
+            <span><b>${i+1}.</b> ${escHTML(ex?.name||('Ejercicio #'+e.exercise_id))}</span>
+            <b>${Number(e.minutes||10)}'</b>
+          </div>`;
+        }).join('');
+
+        return `<details class="history-card">
+          <summary class="history-card-summary">
+            <div>
+              <div class="history-card-title">${escHTML(label)}</div>
+              <div class="history-card-meta">${escHTML(dateLabel)} · ${Number(s.duration_minutes||20)} min · ${exercises.length} ejercicios</div>
+            </div>
+            <span class="history-chevron">⌄</span>
+          </summary>
+          <div class="history-card-body">
+            <div class="history-card-actions">
+              <button class="light" onclick="event.preventDefault();event.stopPropagation();loadHistorySession('${String(s.id||'')}')">↗ Ver sesión</button>
+              ${s.id ? `<button class="remove" onclick="event.preventDefault();event.stopPropagation();deleteHistorySession('${String(s.id)}')">🗑 Eliminar</button>`:''}
+            </div>
+            <div class="history-exercises">${exerciseRows}</div>
+          </div>
+        </details>`;
       }).join('');
 
-      return `<details class="history-card">
-        <summary class="history-card-summary">
-          <div>
-            <div class="history-card-title">${escHTML(label)}</div>
-            <div class="history-card-meta">${escHTML(dateLabel)} · ${Number(s.duration_minutes||20)} min · ${exercises.length} ejercicios</div>
-          </div>
-          <span class="history-chevron">⌄</span>
+      return `<details class="history-month" ${monthIndex===0?'open':''}>
+        <summary>
+          <span class="history-month-title">📅 ${escHTML(monthLabel(key))} <span class="history-month-count">· ${monthItems.length} sesión${monthItems.length===1?'':'es'}</span></span>
+          <span class="history-month-chevron">⌄</span>
         </summary>
-        <div class="history-card-body">
-          <div class="history-card-actions">
-            <button class="light" onclick="event.preventDefault();event.stopPropagation();loadHistorySession('${String(s.id||'')}')">↗ Ver sesión</button>
-            ${s.id ? `<button class="remove" onclick="event.preventDefault();event.stopPropagation();deleteHistorySession('${String(s.id)}')">🗑 Eliminar</button>`:''}
-          </div>
-          <div class="history-exercises">${exerciseRows}</div>
-        </div>
+        <div class="history-month-body">${monthBody}</div>
       </details>`;
-    }).join('');
+    }).join('')+'</div>';
   }
 
   async function refreshHistory(){
