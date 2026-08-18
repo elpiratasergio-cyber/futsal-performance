@@ -165,34 +165,6 @@ header .inner,.wrap{width:100%}
 /* Evita que diagramas SVG anchos deformen las tarjetas en pantallas pequeñas */
 .card svg,.modalCard svg{max-width:100%;height:auto}
 
-
-/* Desplegables principales del Generador 20' */
-.top-collapsible-panel{padding:0;overflow:hidden}
-.main-section-details{width:100%}
-.main-section-details>summary{list-style:none}
-.main-section-details>summary::-webkit-details-marker{display:none}
-.main-section-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;cursor:pointer;font-size:20px;font-weight:900;user-select:none;background:#fff}
-.main-section-summary:hover{background:#f7fbf8}
-.main-section-chevron{font-size:24px;line-height:1;transition:transform .18s ease;color:#17643a}
-.main-section-details[open] .main-section-chevron{transform:rotate(180deg)}
-.main-section-body{padding:0 20px 20px}
-/* Agrupación mensual del historial */
-.history-month-list{display:grid;gap:10px;margin-top:12px}
-.history-month{border:1px solid #cfe0d6;border-radius:13px;background:#fbfefc;overflow:hidden}
-.history-month>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 14px;cursor:pointer;font-weight:900;color:#17643a;background:#f1f8f3}
-.history-month>summary::-webkit-details-marker{display:none}
-.history-month>summary:hover{background:#e8f4ec}
-.history-month-title{display:flex;align-items:center;gap:8px}
-.history-month-count{font-size:12px;font-weight:800;color:#64756e}
-.history-month-chevron{font-size:20px;line-height:1;transition:transform .18s ease}
-.history-month[open] .history-month-chevron{transform:rotate(180deg)}
-.history-month-body{padding:10px}
-.history-month-body .history-card{margin:0}
-@media(max-width:560px){
-  .main-section-summary{font-size:18px;padding:15px}
-  .main-section-body{padding:0 12px 14px}
-}
-
 /* ===== HISTORIAL DE SESIONES ===== */
 .history-panel{margin-top:16px}
 .history-toolbar{display:flex;flex-wrap:wrap;gap:9px;align-items:end}
@@ -416,7 +388,7 @@ header .inner,.wrap{width:100%}
     sessions.forEach(session=>{
       // Do not touch the 20-minute generator.
       const sessionText=(session.innerText||'').toLowerCase();
-      if(sessionText.includes('20 min') || sessionText.includes('20\\'')) return;
+      if(sessionText.includes('20 min') || sessionText.includes("20'")) return;
 
       const cards=Array.from(session.querySelectorAll(
         '.exercise-card,.exercise-item,.task-card,.session-exercise,.block,.exercise,[data-exercise],li'
@@ -500,6 +472,14 @@ header .inner,.wrap{width:100%}
 .fc-manual-image-details{margin-top:10px}
 .fc-manual-image{display:block;width:100%;max-height:420px;object-fit:contain;margin-top:8px;border-radius:12px;background:#f5f8f6}
 </style>
+
+<style>
+.fc-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:8px}
+.fc-detail-box{background:#f7faf9;border:1px solid #dce8e4;border-radius:12px;padding:12px 14px}
+.fc-detail-box b{display:block;color:#174c3e;margin-bottom:5px}
+.fc-detail-box p{margin:0;line-height:1.45;color:#33423f}
+@media(max-width:700px){.fc-detail-grid{grid-template-columns:1fr}}
+</style>
 </head><body>
 <header>
   <div class="inner">
@@ -514,55 +494,38 @@ header .inner,.wrap{width:100%}
   <button class="top-tab" id="tabSeasonBtn" onclick="switchMainTab('season')">📅 Temporada Infantil</button>
 </div>
 <div class="wrap" id="generatorTab">
-<section class="panel top-collapsible-panel">
-  <details class="main-section-details" open>
-    <summary class="main-section-summary">
-      <span>⚡ Generador de 20' · 2 ejercicios</span>
-      <span class="main-section-chevron">⌄</span>
-    </summary>
-    <div class="main-section-body">
-      <p class="hint">Genera exactamente 2 ejercicios de 10'. El primero será un juego inicial, rondo o tarea colectiva; el segundo será el estímulo principal. El calentamiento activo previo queda fuera del generador.</p>
-      <div class="generator">
-      <div><label>Objetivo</label><select id="goal"><option value="auto">Automático / equilibrado</option><option value="accel">Aceleración</option><option value="cod">Frenada + cambios de dirección</option><option value="power">Potencia / reactividad</option><option value="tech">Técnica + velocidad</option><option value="specific">Específico con balón</option><option value="react">Reacción + decisión</option><option value="mixed">Mixto</option></select></div>
-      <div><label>Jugadores</label><select id="players"><option>10</option><option>12</option><option>14</option><option>16</option><option>18</option></select></div>
-      <div><label>Material</label><select id="equipment"><option value="normal">Normal</option><option value="low">Poco material</option><option value="ball">Prioridad balón</option></select></div>
-      <div><label>Perfil</label><select id="profile"><option value="pre">Inicio / activación</option><option value="normal">Entrenamiento normal</option><option value="high">Alta intensidad</option></select></div>
-      <button class="green" onclick="generate20()">⚡ Generar 20'</button></div>
-      <div id="generated" class="generated"></div>
-    </div>
-  </details>
-</section>
+<section class="panel"><h2>Generador de 20' · 2 ejercicios</h2>
+<p class="hint">Genera exactamente 2 ejercicios de 10'. El primero será un juego inicial, rondo o tarea colectiva; el segundo será el estímulo principal. El calentamiento activo previo queda fuera del generador.</p>
+<div class="generator">
+<div><label>Objetivo</label><select id="goal"><option value="auto">Automático / equilibrado</option><option value="accel">Aceleración</option><option value="cod">Frenada + cambios de dirección</option><option value="power">Potencia / reactividad</option><option value="tech">Técnica + velocidad</option><option value="specific">Específico con balón</option><option value="react">Reacción + decisión</option><option value="mixed">Mixto</option></select></div>
+<div><label>Jugadores</label><select id="players"><option>10</option><option>12</option><option>14</option><option>16</option><option>18</option></select></div>
+<div><label>Material</label><select id="equipment"><option value="normal">Normal</option><option value="low">Poco material</option><option value="ball">Prioridad balón</option></select></div>
+<div><label>Perfil</label><select id="profile"><option value="pre">Inicio / activación</option><option value="normal">Entrenamiento normal</option><option value="high">Alta intensidad</option></select></div>
+<button class="green" onclick="generate20()">⚡ Generar 20'</button></div><div id="generated" class="generated"></div></section>
 
-<section class="panel history-panel top-collapsible-panel">
-  <details class="main-section-details" open>
-    <summary class="main-section-summary">
-      <span>📅 Historial de sesiones</span>
-      <span class="main-section-chevron">⌄</span>
-    </summary>
-    <div class="main-section-body">
-      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
-        <div>
-          <p class="hint">Las sesiones generadas quedan como borrador. Solo pasan al historial cuando pulsas «Guardar / comprobar sesión».</p>
-        </div>
-        <span class="history-badge">☁️ Supabase + copia local</span>
-      </div>
-      <div class="history-toolbar">
-        <div class="history-field small">
-          <label>Fecha de entrenamiento</label>
-          <input id="sessionDate" type="date">
-        </div>
-        <div class="history-field">
-          <label>Nombre de la sesión</label>
-          <input id="sessionName" placeholder="Se genera automáticamente">
-        </div>
-        <button class="green" onclick="saveCurrentGeneratedSession()">💾 Guardar / comprobar sesión</button>
-      </div>
-      <div id="historyStatus" class="history-status"></div>
-      <div id="historyList" class="history-list">
-        <div class="history-empty">Todavía no hay sesiones guardadas.</div>
-      </div>
+<section class="panel history-panel">
+  <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
+    <div>
+      <h2>📅 Historial de sesiones</h2>
+      <p class="hint">Guarda automáticamente las sesiones generadas para que las siguientes tengan en cuenta lo que ya has realizado.</p>
     </div>
-  </details>
+    <span class="history-badge">☁️ Supabase + copia local</span>
+  </div>
+  <div class="history-toolbar">
+    <div class="history-field small">
+      <label>Fecha de entrenamiento</label>
+      <input id="sessionDate" type="date">
+    </div>
+    <div class="history-field">
+      <label>Nombre de la sesión</label>
+      <input id="sessionName" placeholder="Se genera automáticamente">
+    </div>
+    <button class="green" onclick="saveCurrentGeneratedSession()">💾 Guardar / comprobar sesión</button>
+  </div>
+  <div id="historyStatus" class="history-status"></div>
+  <div id="historyList" class="history-list">
+    <div class="history-empty">Todavía no hay sesiones guardadas.</div>
+  </div>
 </section>
 
 <section class="panel custom-panel">
@@ -3390,18 +3353,6 @@ window.addEventListener('load',()=>{
     return {...data,training_session_exercises:rows};
   }
 
-  function monthKey(date){
-    const m=String(date||'').match(/^(\d{4})-(\d{2})/);
-    return m?`${m[1]}-${m[2]}`:'sin-fecha';
-  }
-  function monthLabel(key){
-    if(key==='sin-fecha') return 'Sin fecha';
-    const [y,m]=key.split('-');
-    const d=new Date(Number(y),Number(m)-1,1);
-    const label=d.toLocaleDateString('es-ES',{month:'long',year:'numeric'});
-    return label.charAt(0).toUpperCase()+label.slice(1);
-  }
-
   function renderHistory(items){
     const root=document.getElementById('historyList');
     if(!root)return;
@@ -3410,7 +3361,7 @@ window.addEventListener('load',()=>{
       return;
     }
 
-    // Ordenamos primero por fecha y después agrupamos por mes.
+    // Orden cronológico: sesión más antigua primero.
     const ordered = [...items].sort((a,b)=>{
       const da=String(a.session_date||'9999-99-99');
       const db=String(b.session_date||'9999-99-99');
@@ -3418,61 +3369,37 @@ window.addEventListener('load',()=>{
       return String(a.created_at||'').localeCompare(String(b.created_at||''));
     });
 
-    const groups=new Map();
-    ordered.forEach(s=>{
-      const key=monthKey(s.session_date);
-      if(!groups.has(key))groups.set(key,[]);
-      groups.get(key).push(s);
-    });
-
-    const monthKeys=[...groups.keys()].sort((a,b)=>{
-      if(a==='sin-fecha')return 1;
-      if(b==='sin-fecha')return -1;
-      return b.localeCompare(a);
-    });
-
-    root.innerHTML='<div class="history-month-list">'+monthKeys.map((key,monthIndex)=>{
-      const monthItems=groups.get(key)||[];
-      const monthBody=monthItems.map((s,idx)=>{
-        const exercises=(s.training_session_exercises||[])
-          .slice()
-          .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
-        const label=s.name || `SESIÓN ${idx+1}`;
-        const dateLabel=isoToEs(s.session_date||'');
-        const exerciseRows=exercises.map((e,i)=>{
-          const ex=EX.find(x=>Number(x.id)===Number(e.exercise_id));
-          return `<div class="history-exercise" onclick="event.preventDefault();event.stopPropagation();openExercise(${Number(e.exercise_id)})">
-            <span><b>${i+1}.</b> ${escHTML(ex?.name||('Ejercicio #'+e.exercise_id))}</span>
-            <b>${Number(e.minutes||10)}'</b>
-          </div>`;
-        }).join('');
-
-        return `<details class="history-card">
-          <summary class="history-card-summary">
-            <div>
-              <div class="history-card-title">${escHTML(label)}</div>
-              <div class="history-card-meta">${escHTML(dateLabel)} · ${Number(s.duration_minutes||20)} min · ${exercises.length} ejercicios</div>
-            </div>
-            <span class="history-chevron">⌄</span>
-          </summary>
-          <div class="history-card-body">
-            <div class="history-card-actions">
-              <button class="light" onclick="event.preventDefault();event.stopPropagation();loadHistorySession('${String(s.id||'')}')">↗ Ver sesión</button>
-              ${s.id ? `<button class="remove" onclick="event.preventDefault();event.stopPropagation();deleteHistorySession('${String(s.id)}')">🗑 Eliminar</button>`:''}
-            </div>
-            <div class="history-exercises">${exerciseRows}</div>
-          </div>
-        </details>`;
+    root.innerHTML=ordered.map((s,idx)=>{
+      const exercises=(s.training_session_exercises||[])
+        .slice()
+        .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+      const label=s.name || `SESIÓN ${idx+1}`;
+      const dateLabel=isoToEs(s.session_date||'');
+      const exerciseRows=exercises.map((e,i)=>{
+        const ex=EX.find(x=>Number(x.id)===Number(e.exercise_id));
+        return `<div class="history-exercise" onclick="event.preventDefault();event.stopPropagation();openExercise(${Number(e.exercise_id)})">
+          <span><b>${i+1}.</b> ${escHTML(ex?.name||('Ejercicio #'+e.exercise_id))}</span>
+          <b>${Number(e.minutes||10)}'</b>
+        </div>`;
       }).join('');
 
-      return `<details class="history-month" ${monthIndex===0?'open':''}>
-        <summary>
-          <span class="history-month-title">📅 ${escHTML(monthLabel(key))} <span class="history-month-count">· ${monthItems.length} sesión${monthItems.length===1?'':'es'}</span></span>
-          <span class="history-month-chevron">⌄</span>
+      return `<details class="history-card">
+        <summary class="history-card-summary">
+          <div>
+            <div class="history-card-title">${escHTML(label)}</div>
+            <div class="history-card-meta">${escHTML(dateLabel)} · ${Number(s.duration_minutes||20)} min · ${exercises.length} ejercicios</div>
+          </div>
+          <span class="history-chevron">⌄</span>
         </summary>
-        <div class="history-month-body">${monthBody}</div>
+        <div class="history-card-body">
+          <div class="history-card-actions">
+            <button class="light" onclick="event.preventDefault();event.stopPropagation();loadHistorySession('${String(s.id||'')}')">↗ Ver sesión</button>
+            ${s.id ? `<button class="remove" onclick="event.preventDefault();event.stopPropagation();deleteHistorySession('${String(s.id)}')">🗑 Eliminar</button>`:''}
+          </div>
+          <div class="history-exercises">${exerciseRows}</div>
+        </div>
       </details>`;
-    }).join('')+'</div>';
+    }).join('');
   }
 
   async function refreshHistory(){
@@ -3862,8 +3789,8 @@ window.addEventListener('load',()=>{
     }
     const out=document.getElementById('generated');out.style.display='block';
     out.innerHTML='<div class="generated-session-head"><h3>'+escHTML(meta.name)+'</h3><div class="actions"><button class="light" onclick="saveCurrentGeneratedSession()">💾 Guardar</button></div></div>'+plan.map((x,i)=>`<div class="gitem clickable" onclick="openExercise(${x.id})"><b>${i+1}</b><div><b>${x.name}</b><small>${x.cat} · ${x.objective}</small></div><b>${x.minutes}'</b></div>`).join('');
-    // La sesión queda solo como borrador hasta que el usuario pulse «Guardar».
-    // Así puede generar tantas propuestas como quiera sin contaminar el historial.
+    // Guardado automático: savePlan vuelve a comprobar N/fecha para evitar duplicados.
+    setTimeout(()=>{try{saveCurrentGeneratedSession()}catch(e){console.warn(e)}},80);
   };
 })();
 </script>
@@ -4656,6 +4583,45 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     return {date:date,dateLabel:dateLabel(date),day:sessionIndex===0?'Martes':'Viernes',phase:phase,focus:focus,sessionIndex:sessionIndex,rows:rows};
   }
 
+  function exerciseDetailHtml(row){
+    var e=row&&row.exercise&&typeof row.exercise==='object'?row.exercise:{};
+    var name=row&&row.name?row.name:(e.name||'Ejercicio');
+    var objective=row&&row.objective?row.objective:(e.objective||'Aplicación del contenido trabajado.');
+    var execution=row&&row.desc?row.desc:(e.execution||e.desc||'Realizar la tarea respetando las reglas y adaptando el espacio al nivel del grupo.');
+    var material=e.material||row.material||'Balones, conos y petos según la tarea.';
+    var players=e.players||row.players||'Según asistencia.';
+    var dose=e.dose||row.dose||row.time||'Según la sesión.';
+    var type=e.type||row.type||'';
+    var text=(name+' '+type+' '+execution).toLowerCase();
+    var setup='Delimitar el espacio antes de comenzar, colocar el material y distribuir a los jugadores para que la tarea pueda empezar rápidamente. Explicar primero la dinámica y después introducir las reglas progresivamente.';
+    if(/rondo|posesi|conserv/.test(text)){
+      setup='Delimitar un espacio de posesión con '+material.toLowerCase()+'. Distribuir a los jugadores manteniendo líneas de pase y suficiente separación. Iniciar con la estructura básica y añadir las restricciones después de comprobar que todos entienden la tarea.';
+    }else if(/1x1|duelo|2x1|3x2|superioridad|inferioridad/.test(text)){
+      setup='Marcar una zona de trabajo con '+material.toLowerCase()+'. Organizar los turnos para que los jugadores entren y salgan con rapidez. Colocar atacantes y defensores según la situación planteada y preparar balones de continuidad.';
+    }else if(/finaliz|tiro|remate|porter/.test(text)){
+      setup='Preparar la zona de finalización con '+material.toLowerCase()+' y orientar las acciones hacia la portería. Dejar varios balones preparados para evitar tiempos muertos y organizar los turnos para que todos participen de forma continua.';
+    }else if(row&&row.block==='match'){
+      setup='Utilizar la pista completa, formar los equipos y comenzar el partido aplicando una condición relacionada con el objetivo de la sesión.';
+    }
+    var keys='Observar la calidad técnica, la toma de decisiones y la intensidad adecuada para la edad. Corregir con mensajes breves y concretos, evitando detener continuamente la tarea.';
+    if(/control|pase/.test(text)) keys='Insistir en el perfil corporal, control orientado, pase al pie adecuado y movilidad inmediata después de pasar. Buscar que el jugador levante la cabeza antes de recibir.';
+    if(/posesi|rondo|conserv/.test(text)) keys='Buscar apoyos constantes, líneas de pase, amplitud y velocidad de circulación. Premiar la movilidad después del pase y la capacidad de jugar lejos de la presión.';
+    if(/finaliz|tiro|remate/.test(text)) keys='Priorizar la orientación corporal, el último pase, la elección de superficie de golpeo y la finalización rápida cuando aparezca ventaja.';
+    if(/1x1|duelo/.test(text)) keys='Fomentar el cambio de ritmo, la protección del balón, el engaño previo y la decisión de superar o combinar según la posición del defensor.';
+    var progression='Comenzar con la versión más sencilla, asegurar comprensión y aumentar progresivamente la dificultad reduciendo espacio, limitando toques, aumentando oposición o añadiendo una condición de puntuación.';
+    var series='Mantener el tiempo asignado al bloque y organizar repeticiones cortas para que haya mucha participación. Alternar pausas breves de explicación con periodos de trabajo continuo.';
+    return '<div class="fc-detail-grid">'+
+      '<div class="fc-detail-box"><b>🎯 Objetivo</b><p>'+escapeHtml(objective)+'</p></div>'+
+      '<div class="fc-detail-box"><b>📋 Cómo se realiza</b><p>'+escapeHtml(execution)+'</p></div>'+
+      '<div class="fc-detail-box"><b>📐 Montaje</b><p>'+escapeHtml(setup)+'</p></div>'+
+      '<div class="fc-detail-box"><b>🧰 Material</b><p>'+escapeHtml(material)+'</p></div>'+
+      '<div class="fc-detail-box"><b>👥 Organización</b><p>'+escapeHtml(players)+'</p></div>'+
+      '<div class="fc-detail-box"><b>⏱️ Series y repeticiones</b><p>'+escapeHtml(dose)+' · '+escapeHtml(series)+'</p></div>'+
+      '<div class="fc-detail-box"><b>🔑 Claves del entrenador</b><p>'+escapeHtml(keys)+'</p></div>'+
+      '<div class="fc-detail-box"><b>📈 Progresión</b><p>'+escapeHtml(progression)+'</p></div>'+
+      '</div>';
+  }
+
   function render(history){
     var el=document.getElementById('seasonWeeks');
     if(!el)return;
@@ -4674,10 +4640,9 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
               var canChange=ri>0 && ri<5 && r.exercise;
               var changeBtn=canChange?'<div class="fc-exercise-actions"><button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace('+w.weekNo+','+si+','+ri+');event.stopPropagation()">🔄 Automático</button><button class="week-manual fc-rebuild-manual" onclick="fcManualExercise('+w.weekNo+','+si+','+ri+');event.stopPropagation()">✏️ Manual</button></div>':'';
               return '<div class="fc-rebuild-exercise '+(r.block==='match'?'fc-rebuild-match':'')+'">'+
-                '<div class="fc-rebuild-ex-title"><strong>'+escapeHtml(r.name)+'</strong><span class="time">'+escapeHtml(r.time)+'</span></div>'+
-                changeBtn+
+                '<div class="fc-rebuild-ex-title"><strong>'+escapeHtml(r.name)+'</strong><div class="fc-title-right">'+(canChange?changeBtn:'')+'<span class="time">'+escapeHtml(r.time)+'</span></div></div>'+
                 '<details class="fc-rebuild-details"><summary>▼ Ver objetivo y detalles</summary>'+
-                  '<div class="fc-rebuild-details-body"><b>Objetivo:</b> '+escapeHtml(r.objective)+'<br>'+escapeHtml(r.desc)+'</div>'+
+                  '<div class="fc-rebuild-details-body">'+exerciseDetailHtml(r)+'</div>'+
                 '</details>'+
                 (r.manualImage?'<details class="fc-manual-image-details"><summary>▼ Ver imagen del ejercicio</summary><img class="fc-manual-image" src="'+escapeHtml(r.manualImage)+'" alt="Esquema de '+escapeHtml(r.name)+'"></details>':scheme(r))+
               '</div>';
@@ -4920,7 +4885,12 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
 .fc-title-right .fc-exercise-actions button{margin:0!important}
 .fc-rebuild-details{margin-top:7px}
 .fc-rebuild-details summary{cursor:pointer;color:#173f31;font-weight:800;font-size:13px}
-.fc-rebuild-details-body{margin-top:7px;padding:10px;border-radius:10px;background:#f1f6f3;font-size:13px;line-height:1.45}
+.fc-rebuild-details-body{margin-top:9px;padding:12px;border-radius:12px;background:#f1f6f3;font-size:13px;line-height:1.5}
+.fc-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.fc-detail-box{background:#fff;border:1px solid #dce8e1;border-radius:10px;padding:10px 11px;min-width:0}
+.fc-detail-box b{display:block;color:#173f31;font-size:13px;margin-bottom:3px}
+.fc-detail-box p{margin:0;color:#34483f}
+@media(max-width:700px){.fc-detail-grid{grid-template-columns:1fr}}
 .fc-rebuild-scheme{margin-top:8px}
 .fc-rebuild-scheme summary{cursor:pointer;color:#173f31;font-weight:800;font-size:13px}
 .fc-rebuild-scheme svg{width:100%;height:auto;display:block;margin-top:8px;border-radius:10px}
@@ -4969,85 +4939,10 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
   function keyExercise(e){return String(e&&e.id!=null?e.id:(e&&e.name)||'').trim().toLowerCase()}
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 
-  const INFANTIL_DEVICE_KEY='fp_device_key_v1';
-  let cloudHydrationPromise=null;
-  function deviceKey(){
-    try{
-      let k=localStorage.getItem(INFANTIL_DEVICE_KEY);
-      if(!k){k=(crypto&&crypto.randomUUID)?crypto.randomUUID():'fp-'+Date.now()+'-'+Math.random().toString(36).slice(2);localStorage.setItem(INFANTIL_DEVICE_KEY,k)}
-      return k;
-    }catch(e){return 'fp-fallback'}
-  }
-  function cloudClient(){
-    try{
-      if(!window.supabase?.createClient)return null;
-      return window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{global:{headers:{'x-device-key':deviceKey()}}});
-    }catch(e){return null}
-  }
   function load(){
     try{let x=JSON.parse(localStorage.getItem(KEY)||'[]');return Array.isArray(x)?x:[]}catch(e){return[]}
   }
-  function save(x){localStorage.setItem(KEY,JSON.stringify(x||[]))}
-
-  async function fetchCloudWeeks(){
-    const c=cloudClient(); if(!c)return null;
-    const {data,error}=await c.from('infantil_weekly_plans')
-      .select('week_no,plan,created_at,updated_at')
-      .eq('device_key',deviceKey())
-      .order('week_no',{ascending:true});
-    if(error)throw error;
-    return (data||[]).map(r=>r.plan).filter(Boolean);
-  }
-  async function upsertCloudWeeks(weeks){
-    const c=cloudClient(); if(!c)return false;
-    const rows=(weeks||[]).map(w=>({device_key:deviceKey(),week_no:Number(w.weekNo),plan:w}));
-    if(!rows.length)return true;
-    const {error}=await c.from('infantil_weekly_plans').upsert(rows,{onConflict:'device_key,week_no'});
-    if(error)throw error;
-    return true;
-  }
-  async function deleteCloudWeek(weekNo){
-    const c=cloudClient(); if(!c)return false;
-    const {error}=await c.from('infantil_weekly_plans').delete().eq('device_key',deviceKey()).eq('week_no',Number(weekNo));
-    if(error)throw error;
-    return true;
-  }
-  async function clearCloudWeeks(){
-    const c=cloudClient(); if(!c)return false;
-    const {error}=await c.from('infantil_weekly_plans').delete().eq('device_key',deviceKey());
-    if(error)throw error;
-    return true;
-  }
-  async function hydrateFromCloud(){
-    if(cloudHydrationPromise)return cloudHydrationPromise;
-    cloudHydrationPromise=(async()=>{
-      try{
-        const local=load();
-        const cloud=await fetchCloudWeeks();
-        if(cloud===null)return;
-        const byWeek=new Map();
-        local.forEach(w=>byWeek.set(Number(w.weekNo),w));
-        cloud.forEach(w=>byWeek.set(Number(w.weekNo),w));
-        const merged=[...byWeek.values()].sort((a,b)=>Number(a.weekNo)-Number(b.weekNo));
-        save(merged);
-        // Si la nube estaba vacía, subimos la copia local existente para que no se pierda.
-        if(!cloud.length && local.length)await upsertCloudWeeks(local);
-        render(merged);
-      }catch(e){
-        console.warn('No se pudo sincronizar la temporada infantil con Supabase; se mantiene la copia local.',e);
-      }
-    })();
-    return cloudHydrationPromise;
-  }
-  window.persistInfantilWeeks=async function(weeks){
-    const normalized=(weeks||[]).slice().sort((a,b)=>Number(a.weekNo)-Number(b.weekNo));
-    save(normalized);
-    try{await upsertCloudWeeks(normalized);return true}catch(e){console.warn('No se pudo guardar la temporada infantil en Supabase; queda guardada localmente.',e);return false}
-  };
-  window.persistInfantilWeek=async function(week){return window.persistInfantilWeeks(load().filter(w=>Number(w.weekNo)!==Number(week.weekNo)).concat([week]));};
-  window.deleteInfantilWeekCloud=deleteCloudWeek;
-  window.clearInfantilWeeksCloud=clearCloudWeeks;
-  window.__hydrateInfantilWeeks=hydrateFromCloud;
+  function save(x){localStorage.setItem(KEY,JSON.stringify(x))}
 
   function weekDates(week){
     // Semana 1 empieza el martes 25/08/2026; cada semana suma 7 días.
@@ -5248,42 +5143,54 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     return {date:iso(date),dateLabel:label(date),day:dayIndex===0?'Martes':'Viernes',phase:pf.name,focus:pf.focus,rows};
   }
 
-  function render(history){
-    const el=document.getElementById('seasonWeeks'); if(!el)return;
-    if(!history.length){el.innerHTML='<div class="empty">Todavía no hay semanas generadas.</div>';return}
-    el.innerHTML=history.sort((a,b)=>a.weekNo-b.weekNo).map((w,wi)=>`
-      <details class="week-card" ${wi===history.length-1?'open':''}>
-        <summary><span>SEMANA ${w.weekNo} · ${esc(w.sessions[0].dateLabel)} — ${esc(w.sessions[1].dateLabel)}</span><span class="week-meta">2 sesiones · ${esc(w.phase)}</span></summary>
+  function renderSeason(history){
+    const el=document.getElementById('seasonWeeks');
+    if(!el)return;
+    if(!Array.isArray(history)||!history.length){
+      el.innerHTML='<div class="empty">Todavía no hay semanas generadas.</div>';
+      return;
+    }
+    const ordered=history.slice().sort((a,b)=>Number(a.weekNo)-Number(b.weekNo));
+    el.innerHTML=ordered.map((w,wi)=>{
+      const sessions=A(w.sessions);
+      const first=sessions[0]||{};
+      const last=sessions[sessions.length-1]||{};
+      return `<details class="week-card" ${wi===ordered.length-1?'open':''}>
+        <summary><span>SEMANA ${Number(w.weekNo)} · ${esc(first.dateLabel||'')} — ${esc(last.dateLabel||'')}</span><span class="week-meta">${sessions.length} sesiones · ${esc(w.phase||'')}</span></summary>
         <div class="week-body">
-          <div class="season-note"><b>Enfoque:</b> ${esc(w.focus.join(' · '))}</div>
-          ${w.sessions.map((s,si)=>`
+          <div class="season-note"><b>Enfoque:</b> ${esc(A(w.focus).join(' · '))}</div>
+          ${sessions.map((s,si)=>`
             <div class="fc-rebuild-day">
-              <div class="fc-rebuild-day-title"><span>${s.day.toUpperCase()}</span><span class="fc-rebuild-day-date">${esc(s.dateLabel)}</span></div>
-              ${s.rows.map((r,ri)=>`
-                <div class="fc-rebuild-exercise ${r.block==='match'?'fc-rebuild-match':''}">
-                  <div class="fc-rebuild-ex-title">
-                    <strong>${esc(r.name)}</strong>
-                    <div class="fc-title-right">
-                      ${r.block!=='match'?`<div class="fc-exercise-actions">
-                        <button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace(${w.weekNo},${si},${ri});event.stopPropagation()">🔄 Automático</button>
-                        <button class="week-manual fc-rebuild-manual" onclick="fcManualExercise(${w.weekNo},${si},${ri});event.stopPropagation()">✏️ Manual</button>
-                      </div>`:''}
-                      <span class="time">${esc(r.time)}</span>
-                    </div>
-                  </div>
-                  <details class="fc-rebuild-details">
-                    <summary>▼ Ver objetivo y detalles</summary>
-                    <div class="fc-rebuild-details-body"><b>Objetivo:</b> ${esc(r.objective)}<br>${esc(r.desc)}</div>
-                  </details>
-                  ${r.manualImage?'<details class="fc-manual-image-details"><summary>▼ Ver imagen del ejercicio</summary><img class="fc-manual-image" src="'+esc(r.manualImage)+'" alt="Esquema de '+esc(r.name)+'"></details>':scheme(r)}
-                </div>
-              `).join('')}
+              <div class="fc-rebuild-day-title"><span>${esc(String(s.day|| (si===0?'Martes':'Viernes')).toUpperCase())}</span><span class="fc-rebuild-day-date">${esc(s.dateLabel||'')}</span></div>
+              ${A(s.rows).map((r,ri)=>{
+                const isMatch=r.block==='match';
+                const canChange=!isMatch && r.block!=='mobility' && !!r.exercise;
+                const actions=canChange?`<div class="fc-exercise-actions">
+                  <button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace(${Number(w.weekNo)},${si},${ri});event.stopPropagation()">🔄 Automático</button>
+                  <button class="week-manual fc-rebuild-manual" onclick="fcManualExercise(${Number(w.weekNo)},${si},${ri});event.stopPropagation()">✏️ Manual</button>
+                </div>`:'';
+                const visual=r.manualImage
+                  ? `<details class="fc-manual-image-details"><summary>▼ Ver imagen del ejercicio</summary><img class="fc-manual-image" src="${esc(r.manualImage)}" alt="Esquema de ${esc(r.name||'ejercicio')}"></details>`
+                  : scheme(r);
+                return `<div class="fc-rebuild-exercise ${isMatch?'fc-rebuild-match':''}">
+                  <div class="fc-rebuild-ex-title"><strong>${esc(r.name||'Ejercicio')}</strong><div class="fc-title-right">${actions}<span class="time">${esc(r.time||'')}</span></div></div>
+                  <details class="fc-rebuild-details"><summary>▼ Ver objetivo y detalles</summary><div class="fc-rebuild-details-body">${exerciseDetailHtml(r)}</div></details>
+                  ${visual}
+                </div>`;
+              }).join('')}
             </div>
           `).join('')}
-          <div class="week-card-actions"><button class="danger small" onclick="event.preventDefault();event.stopPropagation();fcRebuildDelete(${w.weekNo})">🗑️ Eliminar semana</button></div>
+          <div class="week-card-actions"><button class="danger small" onclick="event.preventDefault();event.stopPropagation();fcRebuildDelete(${Number(w.weekNo)})">🗑️ Eliminar semana</button></div>
         </div>
-      </details>`).join('');
+      </details>`;
+    }).join('');
   }
+
+  /* Exponemos el render del motor reconstruido para que los botones robustos
+     y cualquier actualización posterior utilicen exactamente este renderer. */
+  window.render=renderSeason;
+
+  window.renderInfantilSeason=renderSeason;
 
   function generate(){
     try{
@@ -5302,7 +5209,7 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
       const sessions=[makeSession(dates[0],week,0,pf,opts,used,recent),makeSession(dates[1],week,1,pf,opts,used,recent)];
       const w={weekNo:week,phase:pf.name,focus:pf.focus,options:opts,createdAt:new Date().toISOString(),sessions};
       const merged=hist.filter(x=>Number(x.weekNo)!==week); merged.push(w);merged.sort((a,b)=>a.weekNo-b.weekNo);save(merged);
-      window.__infantilWeek=w;render(merged);
+      window.__infantilWeek=w;renderSeason(merged);
       const sum=document.getElementById('seasonSummary');
       if(sum)sum.innerHTML=`<div class="season-summary"><div class="season-stat"><b>${week}</b><span>semana</span></div><div class="season-stat"><b>2</b><span>sesiones</span></div><div class="season-stat"><b>90'</b><span>por sesión</span></div><div class="season-stat"><b>${opts.players}</b><span>jugadores</span></div></div>`;
     }catch(e){alert('No se ha podido generar la semana.\\n\\n'+e.message)}
@@ -5321,7 +5228,7 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     const recent=recentCounts(hist,week);
     const fresh=pick(row.block,pf,pf.goal,used,recent,si);
     row.exercise=fresh;row.name=fresh.name;row.objective=fresh.objective;row.desc=fresh.execution;
-    save(hist);window.__infantilWeek=w;render(hist);
+    save(hist);window.__infantilWeek=w;renderSeason(hist);
   };
 
 
@@ -5375,7 +5282,7 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
       row.exercise.execution=row.desc;
       row.exercise.manual=true;
       if(img){row.manualImage=img;row.exercise.manualImage=img;}
-      save(hist);window.__infantilWeek=w;document.getElementById('fcManualModal')?.remove();render(hist);
+      save(hist);window.__infantilWeek=w;document.getElementById('fcManualModal')?.remove();renderSeason(hist);
     };
     if(file){
       const reader=new FileReader();
@@ -5409,17 +5316,16 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     save(h);
     if(window.__infantilWeek&&Number(window.__infantilWeek.weekNo)===Number(week))window.__infantilWeek=null;
     document.getElementById('fcDeleteWeekModal')?.remove();
-    render(h);
-    if(typeof window.deleteInfantilWeekCloud==='function')window.deleteInfantilWeekCloud(week).catch(function(e){console.warn('No se pudo eliminar la semana en Supabase.',e)});
+    renderSeason(h);
   };
 
   // Ensure the season tab always uses the rebuilt renderer.
   const oldSwitch=window.switchMainTab;
   window.switchMainTab=function(tab){
     if(typeof oldSwitch==='function')oldSwitch(tab);
-    if(tab==='season')setTimeout(()=>render(load()),50);
+    if(tab==='season')setTimeout(()=>renderSeason(load()),50);
   };
-  document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>render(load()),100));
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>renderSeason(load()),100));
 })();
 </script>
 
@@ -5480,11 +5386,6 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     writeHistory(merged);
     window.__infantilWeek=week;
     redraw();
-    if(typeof window.persistInfantilWeeks==='function'){
-      window.persistInfantilWeeks(merged).then(function(ok){
-        if(!ok) summary('Semana '+week.weekNo+' guardada en este dispositivo. Supabase no respondió.');
-      });
-    }
 
     /* Dejamos preparada la semana siguiente para que el flujo sea:
        guardar Semana 1 → Semana 2 → generar → guardar → Semana 3... */
@@ -5582,12 +5483,250 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     });
   }
 
-  function bootCloud(){
-    if(typeof window.hydrateInfantilWeeks==='function')window.hydrateInfantilWeeks();
-    else if(typeof hydrateFromCloud==='function')hydrateFromCloud();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);
+  else bind();
+})();
+</script>
+
+
+
+<!-- ===== PERSISTENCIA SUPABASE · TEMPORADA INFANTIL =====
+     Este bloque solo añade persistencia cloud a las semanas guardadas.
+     No modifica el generador, la estructura ni el contenido de los detalles. -->
+<script id="fc-infantil-cloud-persistence">
+(function(){
+  'use strict';
+
+  const CLOUD_TABLE='infantil_weekly_plans';
+  const LOCAL_KEY='futsalPerformanceInfantilWeeklyV3';
+  const DEVICE_KEY_NAME='fp_device_key_v1';
+
+  function getDeviceKey(){
+    try{
+      let key=localStorage.getItem(DEVICE_KEY_NAME);
+      if(!key){
+        key=(window.crypto && typeof window.crypto.randomUUID==='function')
+          ? window.crypto.randomUUID()
+          : 'fp-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+        localStorage.setItem(DEVICE_KEY_NAME,key);
+      }
+      return key;
+    }catch(e){
+      return 'fp-fallback';
+    }
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){bind();setTimeout(function(){ if(typeof window.__hydrateInfantilWeeks==='function')window.__hydrateInfantilWeeks(); },120);});
-  else {bind();setTimeout(function(){ if(typeof window.__hydrateInfantilWeeks==='function')window.__hydrateInfantilWeeks(); },120);}
+
+  function cloudClient(){
+    try{
+      if(!window.supabase || typeof window.supabase.createClient!=='function') return null;
+      return window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_PUBLISHABLE_KEY,
+        {global:{headers:{'x-device-key':getDeviceKey()}}}
+      );
+    }catch(e){
+      console.warn('No se pudo inicializar Supabase para las semanas infantiles.',e);
+      return null;
+    }
+  }
+
+  function localWeeks(){
+    try{
+      const value=JSON.parse(localStorage.getItem(LOCAL_KEY)||'[]');
+      return Array.isArray(value)?value:[];
+    }catch(e){return [];}
+  }
+
+  function saveLocalWeeks(weeks){
+    localStorage.setItem(LOCAL_KEY,JSON.stringify(Array.isArray(weeks)?weeks:[]));
+  }
+
+  function mergeWeeks(a,b){
+    const map=new Map();
+    [...(Array.isArray(a)?a:[]),...(Array.isArray(b)?b:[])].forEach(function(w){
+      if(!w || w.weekNo==null) return;
+      map.set(Number(w.weekNo),w);
+    });
+    return Array.from(map.values()).sort(function(x,y){return Number(x.weekNo)-Number(y.weekNo);});
+  }
+
+  async function cloudFetchWeeks(){
+    const client=cloudClient();
+    if(!client) return null;
+    const result=await client
+      .from(CLOUD_TABLE)
+      .select('week_no,plan,created_at,updated_at')
+      .eq('device_key',getDeviceKey())
+      .order('week_no',{ascending:true});
+    if(result.error) throw result.error;
+    return (result.data||[]).map(function(row){return row.plan;}).filter(Boolean);
+  }
+
+  async function cloudSaveWeek(week){
+    const client=cloudClient();
+    if(!client) throw new Error('Supabase no está disponible.');
+    const result=await client
+      .from(CLOUD_TABLE)
+      .upsert({
+        device_key:getDeviceKey(),
+        week_no:Number(week.weekNo),
+        plan:week,
+        updated_at:new Date().toISOString()
+      },{onConflict:'device_key,week_no'});
+    if(result.error) throw result.error;
+  }
+
+  async function cloudDeleteWeek(weekNo){
+    const client=cloudClient();
+    if(!client) return;
+    const result=await client
+      .from(CLOUD_TABLE)
+      .delete()
+      .eq('device_key',getDeviceKey())
+      .eq('week_no',Number(weekNo));
+    if(result.error) throw result.error;
+  }
+
+  async function cloudDeleteAll(){
+    const client=cloudClient();
+    if(!client) return;
+    const result=await client
+      .from(CLOUD_TABLE)
+      .delete()
+      .eq('device_key',getDeviceKey());
+    if(result.error) throw result.error;
+  }
+
+  function redraw(weeks){
+    const ordered=mergeWeeks([],weeks);
+    if(typeof window.render==='function') window.render(ordered);
+    else if(typeof window.renderWeeklyHistory==='function') window.renderWeeklyHistory();
+  }
+
+  function status(message,isError){
+    const el=document.getElementById('seasonSummary');
+    if(!el)return;
+    el.innerHTML='<div class="season-note" style="'+(isError?'color:#a11;':'')+'">'+message+'</div>';
+  }
+
+  async function hydrate(){
+    try{
+      const local=localWeeks();
+      const cloud=await cloudFetchWeeks();
+      if(cloud===null)return;
+      const merged=mergeWeeks(local,cloud);
+      saveLocalWeeks(merged);
+      redraw(merged);
+    }catch(error){
+      console.warn('No se pudieron cargar las semanas infantiles desde Supabase.',error);
+      /* Si Supabase falla, mantenemos exactamente la copia local. */
+      redraw(localWeeks());
+    }
+  }
+
+  async function saveCurrent(){
+    let week=window.__infantilWeek;
+    const selected=Math.max(1,Number(document.getElementById('seasonWeek')?.value)||1);
+    const history=localWeeks();
+
+    if(!week || Number(week.weekNo)!==selected){
+      week=history.find(function(w){return Number(w.weekNo)===selected;});
+    }
+    if(!week){
+      alert('Genera primero la Semana '+selected+' y después pulsa «Guardar semana».');
+      return;
+    }
+
+    try{
+      /* Primero persistimos en Supabase. Solo después actualizamos la copia local. */
+      await cloudSaveWeek(week);
+      const merged=mergeWeeks(history,[week]);
+      saveLocalWeeks(merged);
+      window.__infantilWeek=week;
+      redraw(merged);
+
+      const next=Math.min(40,Number(week.weekNo)+1);
+      const input=document.getElementById('seasonWeek');
+      if(input)input.value=next;
+      status('Semana '+week.weekNo+' guardada correctamente. <b>Semana '+next+' preparada</b> para generar.');
+    }catch(error){
+      console.error('Error guardando Semana Infantil:',error);
+      alert('No se ha podido guardar la semana en la base de datos.\n\n'+(error?.message||error));
+    }
+  }
+
+  async function loadSelected(){
+    const selected=Math.max(1,Number(document.getElementById('seasonWeek')?.value)||1);
+    try{
+      const local=localWeeks();
+      const cloud=await cloudFetchWeeks();
+      const merged=mergeWeeks(local,cloud||[]);
+      saveLocalWeeks(merged);
+      const week=merged.find(function(w){return Number(w.weekNo)===selected;});
+      if(!week){
+        alert('No existe una Semana '+selected+' guardada.');
+        return;
+      }
+      window.__infantilWeek=week;
+      redraw(merged);
+      status('Semana '+selected+' cargada correctamente.');
+    }catch(error){
+      console.error('Error cargando semanas infantiles:',error);
+      alert('No se han podido cargar las semanas guardadas.\n\n'+(error?.message||error));
+    }
+  }
+
+  async function deleteSingleWeek(weekNo){
+    try{
+      await cloudDeleteWeek(weekNo);
+      const remaining=localWeeks().filter(function(w){return Number(w.weekNo)!==Number(weekNo);});
+      saveLocalWeeks(remaining);
+      if(window.__infantilWeek && Number(window.__infantilWeek.weekNo)===Number(weekNo)) window.__infantilWeek=null;
+      document.getElementById('fcDeleteWeekModal')?.remove();
+      redraw(remaining);
+    }catch(error){
+      console.error('Error eliminando Semana Infantil:',error);
+      alert('No se ha podido eliminar la semana de la base de datos.\n\n'+(error?.message||error));
+    }
+  }
+
+  async function clearAll(){
+    if(!confirm('¿Vaciar todas las semanas guardadas?'))return;
+    try{
+      await cloudDeleteAll();
+      localStorage.removeItem(LOCAL_KEY);
+      window.__infantilWeek=null;
+      const input=document.getElementById('seasonWeek');
+      if(input)input.value=1;
+      redraw([]);
+      status('No hay semanas guardadas. La Semana 1 está preparada para generar.');
+    }catch(error){
+      console.error('Error vaciando semanas infantiles:',error);
+      alert('No se han podido eliminar las semanas de la base de datos.\n\n'+(error?.message||error));
+    }
+  }
+
+  function bind(){
+    /* La eliminación individual también debe reflejarse en Supabase. */
+    window.fcConfirmDeleteWeek=function(weekNo){deleteSingleWeek(weekNo);};
+
+    const saveButton=document.getElementById('btnSaveInfantilWeek');
+    const loadButton=document.getElementById('btnLoadInfantilWeek');
+    const clearButton=document.getElementById('btnClearInfantilWeeks');
+
+    if(saveButton) saveButton.onclick=function(e){e.preventDefault();e.stopPropagation();saveCurrent();};
+    if(loadButton) loadButton.onclick=function(e){e.preventDefault();e.stopPropagation();loadSelected();};
+    if(clearButton) clearButton.onclick=function(e){e.preventDefault();e.stopPropagation();clearAll();};
+  }
+
+  /* No tocamos generar: generar sigue mostrando la semana para que puedas
+     revisarla. La persistencia definitiva ocurre únicamente al pulsar Guardar. */
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',function(){bind();hydrate();});
+  }else{
+    bind();
+    hydrate();
+  }
 })();
 </script>
 
