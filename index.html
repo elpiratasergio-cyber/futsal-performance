@@ -4969,10 +4969,85 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
   function keyExercise(e){return String(e&&e.id!=null?e.id:(e&&e.name)||'').trim().toLowerCase()}
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 
+  const INFANTIL_DEVICE_KEY='fp_device_key_v1';
+  let cloudHydrationPromise=null;
+  function deviceKey(){
+    try{
+      let k=localStorage.getItem(INFANTIL_DEVICE_KEY);
+      if(!k){k=(crypto&&crypto.randomUUID)?crypto.randomUUID():'fp-'+Date.now()+'-'+Math.random().toString(36).slice(2);localStorage.setItem(INFANTIL_DEVICE_KEY,k)}
+      return k;
+    }catch(e){return 'fp-fallback'}
+  }
+  function cloudClient(){
+    try{
+      if(!window.supabase?.createClient)return null;
+      return window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{global:{headers:{'x-device-key':deviceKey()}}});
+    }catch(e){return null}
+  }
   function load(){
     try{let x=JSON.parse(localStorage.getItem(KEY)||'[]');return Array.isArray(x)?x:[]}catch(e){return[]}
   }
-  function save(x){localStorage.setItem(KEY,JSON.stringify(x))}
+  function save(x){localStorage.setItem(KEY,JSON.stringify(x||[]))}
+
+  async function fetchCloudWeeks(){
+    const c=cloudClient(); if(!c)return null;
+    const {data,error}=await c.from('infantil_weekly_plans')
+      .select('week_no,plan,created_at,updated_at')
+      .eq('device_key',deviceKey())
+      .order('week_no',{ascending:true});
+    if(error)throw error;
+    return (data||[]).map(r=>r.plan).filter(Boolean);
+  }
+  async function upsertCloudWeeks(weeks){
+    const c=cloudClient(); if(!c)return false;
+    const rows=(weeks||[]).map(w=>({device_key:deviceKey(),week_no:Number(w.weekNo),plan:w}));
+    if(!rows.length)return true;
+    const {error}=await c.from('infantil_weekly_plans').upsert(rows,{onConflict:'device_key,week_no'});
+    if(error)throw error;
+    return true;
+  }
+  async function deleteCloudWeek(weekNo){
+    const c=cloudClient(); if(!c)return false;
+    const {error}=await c.from('infantil_weekly_plans').delete().eq('device_key',deviceKey()).eq('week_no',Number(weekNo));
+    if(error)throw error;
+    return true;
+  }
+  async function clearCloudWeeks(){
+    const c=cloudClient(); if(!c)return false;
+    const {error}=await c.from('infantil_weekly_plans').delete().eq('device_key',deviceKey());
+    if(error)throw error;
+    return true;
+  }
+  async function hydrateFromCloud(){
+    if(cloudHydrationPromise)return cloudHydrationPromise;
+    cloudHydrationPromise=(async()=>{
+      try{
+        const local=load();
+        const cloud=await fetchCloudWeeks();
+        if(cloud===null)return;
+        const byWeek=new Map();
+        local.forEach(w=>byWeek.set(Number(w.weekNo),w));
+        cloud.forEach(w=>byWeek.set(Number(w.weekNo),w));
+        const merged=[...byWeek.values()].sort((a,b)=>Number(a.weekNo)-Number(b.weekNo));
+        save(merged);
+        // Si la nube estaba vacía, subimos la copia local existente para que no se pierda.
+        if(!cloud.length && local.length)await upsertCloudWeeks(local);
+        render(merged);
+      }catch(e){
+        console.warn('No se pudo sincronizar la temporada infantil con Supabase; se mantiene la copia local.',e);
+      }
+    })();
+    return cloudHydrationPromise;
+  }
+  window.persistInfantilWeeks=async function(weeks){
+    const normalized=(weeks||[]).slice().sort((a,b)=>Number(a.weekNo)-Number(b.weekNo));
+    save(normalized);
+    try{await upsertCloudWeeks(normalized);return true}catch(e){console.warn('No se pudo guardar la temporada infantil en Supabase; queda guardada localmente.',e);return false}
+  };
+  window.persistInfantilWeek=async function(week){return window.persistInfantilWeeks(load().filter(w=>Number(w.weekNo)!==Number(week.weekNo)).concat([week]));};
+  window.deleteInfantilWeekCloud=deleteCloudWeek;
+  window.clearInfantilWeeksCloud=clearCloudWeeks;
+  window.__hydrateInfantilWeeks=hydrateFromCloud;
 
   function weekDates(week){
     // Semana 1 empieza el martes 25/08/2026; cada semana suma 7 días.
@@ -5335,6 +5410,7 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     if(window.__infantilWeek&&Number(window.__infantilWeek.weekNo)===Number(week))window.__infantilWeek=null;
     document.getElementById('fcDeleteWeekModal')?.remove();
     render(h);
+    if(typeof window.deleteInfantilWeekCloud==='function')window.deleteInfantilWeekCloud(week).catch(function(e){console.warn('No se pudo eliminar la semana en Supabase.',e)});
   };
 
   // Ensure the season tab always uses the rebuilt renderer.
@@ -5404,6 +5480,11 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     writeHistory(merged);
     window.__infantilWeek=week;
     redraw();
+    if(typeof window.persistInfantilWeeks==='function'){
+      window.persistInfantilWeeks(merged).then(function(ok){
+        if(!ok) summary('Semana '+week.weekNo+' guardada en este dispositivo. Supabase no respondió.');
+      });
+    }
 
     /* Dejamos preparada la semana siguiente para que el flujo sea:
        guardar Semana 1 → Semana 2 → generar → guardar → Semana 3... */
@@ -5501,8 +5582,12 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     });
   }
 
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);
-  else bind();
+  function bootCloud(){
+    if(typeof window.hydrateInfantilWeeks==='function')window.hydrateInfantilWeeks();
+    else if(typeof hydrateFromCloud==='function')hydrateFromCloud();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){bind();setTimeout(function(){ if(typeof window.__hydrateInfantilWeeks==='function')window.__hydrateInfantilWeeks(); },120);});
+  else {bind();setTimeout(function(){ if(typeof window.__hydrateInfantilWeeks==='function')window.__hydrateInfantilWeeks(); },120);}
 })();
 </script>
 
