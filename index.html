@@ -3221,15 +3221,143 @@ function goalMatch(x,g){if(g==='accel')return /Aceleración|Velocidad/.test(x.ca
 function pick(a,u){let b=a.filter(x=>!u.has(x.id));return b.length?b[Math.floor(Math.random()*b.length)]:a[Math.floor(Math.random()*a.length)]}
 function isActivationOrIndividual(x){return x.cat==='Activación'||x.mode==='Individual'}
 function gameRelevant(x,g){if(!x.cat.startsWith('Juego inicial'))return true;if(g==='specific')return /Rondo|Posesión|Juego reducido|Técnico/.test(x.type+x.cat);if(g==='react')return /Reacción|cognitivo|transición|presión/i.test(x.type+x.cat+x.objective);if(g==='accel'||g==='cod'||g==='power')return /transición|reducido|reacción|presión/i.test(x.type+x.cat);return true}
-function generate20(){const g=document.getElementById('goal').value,p=Number(document.getElementById('players').value),eq=document.getElementById('equipment').value;let pool=EX.filter(x=>{if(isActivationOrIndividual(x))return false;let z=x.players.split('-').map(Number),ok=p>=z[0]&&p<=(z[1]||z[0]),goal=goalMatch(x,g),eqok=eq==='normal'||(eq==='low'&&!/Balones|petos/.test(x.material))||(eq==='ball'&&x.ball!=='Sin balón');return ok&&goal&&eqok});if(pool.length<4)pool=EX.filter(x=>!isActivationOrIndividual(x)&&gameRelevant(x,g));
-let games=pool.filter(x=>x.cat.startsWith('Juego inicial')&&gameRelevant(x,g));
-let main=pool.filter(x=>!x.cat.startsWith('Juego inicial'));
-if(!games.length)games=GAMES.filter(x=>gameRelevant(x,g)&&Number(x.players.split('-')[0])<=p&&p<=Number(x.players.split('-')[1]));
-if(!main.length)main=pool;
-let used=new Set(),first=pick(games,used);used.add(first.id);
-let secondPool=main.filter(x=>{let z=x.players.split('-').map(Number);return p>=z[0]&&p<=(z[1]||z[0])});
-if(!secondPool.length)secondPool=main;let second=pick(secondPool,used);
-let plan=[{...first,minutes:10},{...second,minutes:10}];session=plan;renderSession();const out=document.getElementById('generated');out.style.display='block';out.innerHTML='<h3>Sesión · 20 minutos · 2 ejercicios de 10 minutos</h3>'+plan.map((x,i)=>`<div class="gitem clickable" onclick="openExercise(${x.id})"><b>${i+1}</b><div><b>${x.name}</b><small>${x.cat} · ${x.objective}</small></div><b>${x.minutes}'</b></div>`).join('')}
+async function fetchSeniorGeneratorHistory(limit=12){
+  try{
+    if(!window.supabase?.createClient) return [];
+    const c=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+    const {data,error}=await c.from('training_sessions')
+      .select('id,session_date,created_at,objective,training_session_exercises(exercise_id,sort_order)')
+      .eq('team','Senior')
+      .order('session_date',{ascending:false})
+      .order('created_at',{ascending:false})
+      .limit(limit);
+    if(error) throw error;
+    return Array.isArray(data)?data:[];
+  }catch(err){
+    console.warn('Historial no disponible para el generador inteligente; se mantiene la generación normal.',err);
+    return [];
+  }
+}
+function generatorText(x){return [x.name,x.cat,x.type,x.objective,x.execution,x.material,x.intensity].filter(Boolean).join(' ').toLowerCase()}
+function generatorFamily(x){
+  const t=generatorText(x);
+  if(/rondo|posesi[oó]n|pase|control|apoyo/.test(t))return 'posesion';
+  if(/juego reducido|2x2|3x3|4x4|5x5|partido/.test(t))return 'juego_reducido';
+  if(/transici[oó]n|contraataque|contra-ataque/.test(t))return 'transicion';
+  if(/reacci[oó]n|cognitiv|se[nñ]al|est[ií]mulo|visual|verbal/.test(t))return 'reaccion';
+  if(/aceleraci[oó]n|velocidad|sprint|esprint/.test(t))return 'velocidad';
+  if(/frenad|cambio de direcci[oó]n|\bcod\b|agilidad|zig-zag/.test(t))return 'cod';
+  if(/finalizaci[oó]n|tiro|disparo|porter[ií]a/.test(t))return 'finalizacion';
+  if(/t[eé]cnica|conducci[oó]n|regate|dominio/.test(t))return 'tecnica';
+  return String(x.cat||x.type||'otros').toLowerCase().trim();
+}
+function generatorRecentStats(history){
+  const ids=new Map(),families=new Map();
+  history.forEach((s,sessionIndex)=>{
+    (s.training_session_exercises||[]).forEach(e=>{
+      const id=Number(e.exercise_id); if(!Number.isFinite(id))return;
+      if(!ids.has(id))ids.set(id,[]); ids.get(id).push(sessionIndex);
+      const x=EX.find(z=>Number(z.id)===id); if(x){
+        const f=generatorFamily(x); if(!families.has(f))families.set(f,[]); families.get(f).push(sessionIndex);
+      }
+    });
+  });
+  return {ids,families};
+}
+function generatorScore(x,{goal,profile,players,first,stats,used}){
+  let s=0,t=generatorText(x),f=generatorFamily(x);
+  if(goalMatch(x,goal))s+=45;
+  if(gameRelevant(x,goal))s+=8;
+  if(first && f===generatorFamily(first))s-=10;
+  if(first){
+    const ft=generatorText(first);
+    if(/posesi[oó]n|rondo|pase|control/.test(ft) && /oposici[oó]n|duelo|1x1|2x1|transici[oó]n|presi[oó]n/.test(t))s+=14;
+    if(/reacci[oó]n|cognitiv|se[nñ]al/.test(ft) && /bal[oó]n|pase|rondo|juego reducido|posesi[oó]n/.test(t))s+=8;
+    if(/juego reducido|2x2|3x3|4x4/.test(ft) && /transici[oó]n|finalizaci[oó]n|tiro/.test(t))s+=10;
+  }
+  if(profile==='pre'){
+    if(/rondo|posesi[oó]n|pase|control|reacci[oó]n|juego reducido/.test(t))s+=12;
+    if(/alta|m[aá]xima|fatiga|pliometr[ií]a pesada/.test(t))s-=8;
+  }else if(profile==='high'){
+    if(/transici[oó]n|reacci[oó]n|aceleraci[oó]n|cambio de direcci[oó]n|1x1|2x2/.test(t))s+=12;
+  }else{
+    if(/bal[oó]n|oposici[oó]n|toma de decisi[oó]n|pase|control/.test(t))s+=6;
+  }
+  const recent=stats.ids.get(Number(x.id))||[];
+  if(recent.length){
+    const last=recent[0];
+    if(last===0)s-=55;
+    else if(last<=1)s-=35;
+    else if(last<=3)s-=20;
+    else if(last<=6)s-=8;
+  }
+  const famRecent=stats.families.get(f)||[];
+  if(famRecent.length){
+    const last=famRecent[0];
+    if(last===0)s-=18;
+    else if(last<=1)s-=12;
+    else if(last<=3)s-=6;
+  }
+  if(used.has(Number(x.id)))s-=1000;
+  s += Math.random()*7;
+  return s;
+}
+function chooseSmartExercise(pool,options){
+  if(!pool.length)return null;
+  const scored=pool.map(x=>({x,s:generatorScore(x,options)})).sort((a,b)=>b.s-a.s);
+  const top=scored.slice(0,Math.min(4,scored.length));
+  return top[Math.floor(Math.random()*top.length)].x;
+}
+async function generate20(){
+  try{
+    const g=document.getElementById('goal').value;
+    const p=Number(document.getElementById('players').value);
+    const eq=document.getElementById('equipment').value;
+    const profile=document.getElementById('profile')?.value||'pre';
+    let pool=EX.filter(x=>{
+      if(isActivationOrIndividual(x))return false;
+      const z=String(x.players||'').split('-').map(Number),min=z[0]||0,max=z[1]||z[0]||0;
+      const ok=p>=min&&p<=max;
+      const goal=goalMatch(x,g);
+      const eqok=eq==='normal'||(eq==='low'&&!/Balones|petos/i.test(x.material||''))||(eq==='ball'&&x.ball!=='Sin balón');
+      return ok&&goal&&eqok;
+    });
+    if(pool.length<4)pool=EX.filter(x=>!isActivationOrIndividual(x)&&gameRelevant(x,g));
+    if(!pool.length)throw new Error('No hay ejercicios compatibles con los filtros seleccionados.');
+
+    let games=pool.filter(x=>x.cat.startsWith('Juego inicial')&&gameRelevant(x,g));
+    if(!games.length)games=GAMES.filter(x=>gameRelevant(x,g)&&Number(x.players.split('-')[0])<=p&&p<=Number(x.players.split('-')[1]));
+    if(!games.length)games=pool;
+
+    let main=pool.filter(x=>!x.cat.startsWith('Juego inicial'));
+    if(!main.length)main=pool;
+
+    const history=await fetchSeniorGeneratorHistory(12);
+    const stats=generatorRecentStats(history);
+    const used=new Set();
+    const first=chooseSmartExercise(games,{goal:g,profile,players:p,first:null,stats,used});
+    if(!first)throw new Error('No se ha encontrado un primer ejercicio compatible.');
+    used.add(Number(first.id));
+
+    let secondPool=main.filter(x=>{
+      const z=String(x.players||'').split('-').map(Number),min=z[0]||0,max=z[1]||z[0]||0;
+      return p>=min&&p<=max;
+    });
+    if(!secondPool.length)secondPool=main;
+    const second=chooseSmartExercise(secondPool,{goal:g,profile,players:p,first,stats,used});
+    if(!second)throw new Error('No se ha encontrado un segundo ejercicio compatible.');
+
+    const plan=[{...first,minutes:10},{...second,minutes:10}];
+    session=plan;
+    renderSession();
+    const out=document.getElementById('generated');
+    out.style.display='block';
+    out.innerHTML='<h3>Sesión · 20 minutos · 2 ejercicios de 10 minutos</h3>'+plan.map((x,i)=>`<div class="gitem clickable" onclick="openExercise(${x.id})"><b>${i+1}</b><div><b>${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.objective)}</small></div><b>${x.minutes}'</b></div>`).join('');
+  }catch(err){
+    console.error(err);
+    alert(`No se ha podido generar la sesión.\n\n${err?.message||err}`);
+  }
+}
 
 /* === Futsal Performance · visual exercise diagram engine === */
 function escSvg(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
