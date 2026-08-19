@@ -3086,10 +3086,15 @@ EX.push(...GAMES);
 
 /* ===== EJERCICIOS PROPIOS CON FOTO ===== */
 const CUSTOM_EXERCISES_KEY='fp_custom_exercises_v1';
+const FP_SHARED_WORKSPACE_KEY='futuro-carmonense-shared-v1';
 function getCustomExercises(){
   try{const a=JSON.parse(localStorage.getItem(CUSTOM_EXERCISES_KEY)||'[]');return Array.isArray(a)?a:[]}catch(e){return []}
 }
 function saveCustomExercises(a){localStorage.setItem(CUSTOM_EXERCISES_KEY,JSON.stringify(a))}
+function customExercisesClient(){
+  if(!window.supabase?.createClient) return null;
+  return window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+}
 function customCategoryOptions(){
   const el=document.getElementById('ceCat'); if(!el)return;
   const current=el.value;
@@ -3099,7 +3104,9 @@ function customCategoryOptions(){
 function mergeCustomExercises(){
   const custom=getCustomExercises();
   const base=EX.filter(x=>!x.custom);
-  EX.splice(0,EX.length,...base,...custom);
+  const byId=new Map();
+  [...base,...custom].forEach(x=>byId.set(Number(x.id),x));
+  EX.splice(0,EX.length,...byId.values());
   rebuildFilterOptions();
   renderDbCards();
 }
@@ -3143,7 +3150,7 @@ async function saveCustomExercise(ev){
   if(!file){setCustomStatus('Selecciona una foto.',true);return}
   try{
     const photo=await compressCustomPhoto(file);
-    const id=Date.now();
+    const id=-Date.now();
     const x={
       id,name:document.getElementById('ceName').value.trim(),cat:document.getElementById('ceCat').value||'Mis ejercicios',
       type:document.getElementById('ceType').value.trim()||'Ejercicio propio',ball:document.getElementById('ceBall').value,
@@ -3153,20 +3160,53 @@ async function saveCustomExercise(ev){
       mode:document.getElementById('ceMode').value,youtube:document.getElementById('ceYoutube').value.trim()||null,youtube_search:null,
       photo,custom:true,useInGenerator:document.getElementById('ceGenerator').checked,visual_config:{}
     };
+
+    const payload={
+      id,name:x.name,category:x.cat,type:x.type,ball:x.ball,intensity:x.intensity,players:x.players,
+      dose:x.dose,objective:x.objective,execution:x.execution,material:x.material,mode:x.mode,
+      youtube:x.youtube,youtube_search:x.youtube_search,visual_config:x.visual_config,active:true,
+      custom:true,use_in_generator:x.useInGenerator,photo:x.photo,device_key:FP_SHARED_WORKSPACE_KEY
+    };
+
+    const c=customExercisesClient();
+    if(c){
+      const {data,error}=await c.from('ejercicios').insert({
+        id:payload.id,nombre:payload.name,categoria:payload.category,tipo:payload.type,balon:payload.ball,
+        intensidad:payload.intensity,jugadores:payload.players,dosis:payload.dose,objetivo:payload.objective,
+        ejecucion:payload.execution,material:payload.material,modo:payload.mode,video_url:payload.youtube,
+        youtube_search_url:payload.youtube_search,visual_config:payload.visual_config,activo:true,
+        es_personal:true,device_key:FP_SHARED_WORKSPACE_KEY,foto_url:payload.photo
+      }).select('id,nombre,categoria,tipo,balon,intensidad,jugadores,dosis,objetivo,ejecucion,material,modo,video_url,youtube_search_url,visual_config,activo,es_personal,device_key,foto_url').single();
+      if(error) throw error;
+      x.id=Number(data.id);
+    }
+
     const all=[...getCustomExercises(),x];saveCustomExercises(all);
     if(!EX.some(e=>e.id===x.id))EX.push(x);
     rebuildFilterOptions();renderDbCards();customCategoryOptions();
     closeCustomExerciseForm();
-    setCustomStatus(`Guardado: ${x.name}`);
+    setCustomStatus(`Guardado en Supabase: ${x.name}`);
     document.getElementById('count').textContent=EX.length;
-  }catch(err){console.error(err);setCustomStatus('No se pudo procesar la foto. Prueba con otra imagen.',true)}
+  }catch(err){
+    console.error(err);
+    setCustomStatus(`No se pudo guardar el ejercicio. ${err?.message||err}`,true);
+  }
 }
-function deleteCustomExercise(id){
+async function deleteCustomExercise(id){
   const x=EX.find(e=>e.id==id);if(!x?.custom)return;
   if(!confirm(`¿Eliminar «${x.name}» de Mis ejercicios?`))return;
-  saveCustomExercises(getCustomExercises().filter(e=>e.id!=id));
-  const i=EX.findIndex(e=>e.id==id);if(i>=0)EX.splice(i,1);
-  rebuildFilterOptions();renderDbCards();setCustomStatus('Ejercicio eliminado.');
+  try{
+    const c=customExercisesClient();
+    if(c){
+      const {error}=await c.from('ejercicios').delete().eq('id',Number(id)).eq('es_personal',true);
+      if(error)throw error;
+    }
+    saveCustomExercises(getCustomExercises().filter(e=>e.id!=id));
+    const i=EX.findIndex(e=>e.id==id);if(i>=0)EX.splice(i,1);
+    rebuildFilterOptions();renderDbCards();setCustomStatus('Ejercicio eliminado de Supabase.');
+  }catch(err){
+    console.error(err);setCustomStatus(`No se pudo eliminar el ejercicio. ${err?.message||err}`,true);
+  }
 }
 function customVisual(x){return x.photo?`<img class="custom-photo" src="${x.photo}" alt="${escHTML(x.name)}">`:renderExerciseDiagram(x)}
 let session=[];function uniq(a){return [...new Set(a)].sort()}function fill(id,vals){const e=document.getElementById(id);vals.forEach(v=>{let o=document.createElement('option');o.value=v;o.textContent=v;e.appendChild(o)})}
@@ -3255,7 +3295,8 @@ function mapDbExercise(r){return {
   name:r.nombre,cat:r.categoria,type:r.tipo,ball:r.balon||'Sin balón',intensity:r.intensidad||'Media',
   players:r.jugadores||'',dose:r.dosis||'',objective:r.objetivo||'',execution:r.ejecucion||'',material:r.material||'Sin material',
   id:Number(r.id),mode:r.modo||'Grupo',youtube:r.video_url||null,youtube_search:r.youtube_search_url||null,
-  visual_config:r.visual_config||{},custom:false,useInGenerator:true
+  visual_config:r.visual_config||{},custom:r.es_personal===true,photo:r.foto_url||null,
+  useInGenerator:r.es_personal===true ? true : true,device_key:r.device_key||null
 }}
 function rebuildFilterOptions(){
   [['cat','cat'],['type','type'],['ball','ball'],['intensity','intensity'],['playersFilter','players']].forEach(([id,key])=>{
@@ -3288,14 +3329,16 @@ async function syncExercisesFromSupabase(){
   try{
     if(!window.supabase?.createClient) return;
     const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
-    const {data,error}=await client.from('ejercicios').select('id,nombre,categoria,tipo,balon,intensidad,jugadores,dosis,objetivo,ejecucion,material,modo,video_url,youtube_search_url,visual_config').eq('activo',true).order('id');
+    const {data,error}=await client.from('ejercicios').select('id,nombre,categoria,tipo,balon,intensidad,jugadores,dosis,objetivo,ejecucion,material,modo,video_url,youtube_search_url,visual_config,activo,es_personal,device_key,foto_url').eq('activo',true).order('id');
     if(error) throw error;
     if(!Array.isArray(data)||data.length===0){
       mergeCustomExercises();
       return;
     }
     const custom=getCustomExercises();
-    EX.splice(0,EX.length,...data.map(mapDbExercise),...custom);
+    const byId=new Map();
+    [...data.map(mapDbExercise),...custom].forEach(x=>byId.set(Number(x.id),x));
+    EX.splice(0,EX.length,...byId.values());
     rebuildFilterOptions();
     renderDbCards();
     refreshExerciseDiagrams();
@@ -3316,9 +3359,7 @@ window.addEventListener('load',()=>{
 /* ===== HISTORIAL DE SESIONES · 2026 ===== */
 (function(){
   const FP_HISTORY_KEY = 'fp_training_history_v1';
-  const FP_DEVICE_KEY = 'fp_device_key_v1';
-  const deviceKey = localStorage.getItem(FP_DEVICE_KEY) || (crypto.randomUUID ? crypto.randomUUID() : 'fp-' + Date.now() + '-' + Math.random().toString(36).slice(2));
-  localStorage.setItem(FP_DEVICE_KEY, deviceKey);
+  const deviceKey = 'futuro-carmonense-20min-v1';
 
   function nextTrainingDate(){
     const d=new Date();
@@ -3352,9 +3393,7 @@ window.addEventListener('load',()=>{
   }
   function historyClient(){
     if(!window.supabase?.createClient) return null;
-    return window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{
-      global:{headers:{'x-device-key':deviceKey}}
-    });
+    return window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
   }
   function normalizeSessionDate(){
     const el=document.getElementById('sessionDate');
@@ -3368,8 +3407,8 @@ window.addEventListener('load',()=>{
     const c=historyClient();
     if(!c) return null;
     const {data,error}=await c.from('training_sessions')
-      .select('id,name,team,session_date,duration_minutes,objective,notes,created_at,training_session_exercises(id,exercise_id,sort_order,minutes,notes)')
-      .eq('device_key',deviceKey)
+      .select('id,name,team,session_date,duration_minutes,objective,notes,created_at,device_key,training_session_exercises(id,exercise_id,sort_order,minutes,notes)')
+      .eq('team','Senior')
       .order('session_date',{ascending:false})
       .order('created_at',{ascending:false});
     if(error) throw error;
@@ -3382,7 +3421,6 @@ window.addEventListener('load',()=>{
   }
 
   async function persistSession(plan, date, name){
-    if(plan.some(x=>x.custom)) return null; // ejercicios propios con foto se conservan localmente
     const c=historyClient();
     if(!c) return null;
     const {data,error}=await c.from('training_sessions').insert({
@@ -3718,14 +3756,14 @@ window.addEventListener('load',()=>{
   const originalGenerate20=window.generate20;
   window.generate20=function(){
     originalGenerate20();
-    setTimeout(()=>{
-      const date=document.getElementById('sessionDate')?.value || nextTrainingDate();
+    setTimeout(async()=>{
+      const meta=await computeNextSessionMeta();
       const dateEl=document.getElementById('sessionDate');
-      if(dateEl && !dateEl.value)dateEl.value=date;
-      const hist=localHistory();
       const nameEl=document.getElementById('sessionName');
-      if(nameEl && !nameEl.value)nameEl.value=defaultName(date,hist.length+1);
-      savePlan(session||[]);
+      if(dateEl && !dateEl.value)dateEl.value=meta.date;
+      if(nameEl && !nameEl.value)nameEl.value=meta.name;
+      lastGeneratedPlanKey=(session||[]).map(x=>Number(x.id)).join(',');
+      setStatus('Sesión generada. No se guardará hasta pulsar «Guardar».');
     },80);
   };
 
