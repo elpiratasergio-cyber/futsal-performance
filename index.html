@@ -3766,7 +3766,9 @@ window.addEventListener('load',()=>{
       return null;
     }
 
-    // MODO EDICIÓN: actualiza la sesión existente y sus ejercicios sin crear otra.
+    // MODO EDICIÓN: reemplazo ATÓMICO en Supabase.
+    // Nunca borramos primero y luego insertamos: la función SQL valida todos
+    // los ejercicios y realiza update/delete/insert dentro de una sola transacción.
     if(editingSessionId){
       try{
         const date=document.getElementById('sessionDate')?.value || editingSessionMeta?.session_date || nextTrainingDate();
@@ -3774,25 +3776,55 @@ window.addEventListener('load',()=>{
         const duration=plan.reduce((sum,x)=>sum+Number(x.minutes||0),0);
         const objective=editingSessionMeta?.objective || document.getElementById('goal')?.value || 'auto';
 
-        const {error:updateError}=await c.from('training_sessions').update({
-          name,
-          session_date:date,
-          duration_minutes:duration,
-          objective
-        }).eq('id',editingSessionId).eq('team','Senior');
-        if(updateError) throw updateError;
+        // Comprobar que todos los IDs pertenecen realmente a la biblioteca de Supabase
+        // antes de intentar modificar la sesión. Si algún ejercicio procede de una
+        // versión antigua de la biblioteca, intentamos resolverlo por nombre.
+        const ids=[...new Set(plan.map(x=>Number(x.id)).filter(Number.isFinite))];
+        const names=[...new Set(plan.map(x=>String(x.name||'').trim()).filter(Boolean))];
+        const {data:dbExercises,error:lookupError}=await c.from('ejercicios')
+          .select('id,nombre')
+          .in('id',ids);
+        if(lookupError) throw lookupError;
 
-        const {error:deleteError}=await c.from('training_session_exercises').delete().eq('session_id',editingSessionId);
-        if(deleteError) throw deleteError;
+        const byId=new Map((dbExercises||[]).map(e=>[Number(e.id),Number(e.id)]));
+        const missing=ids.filter(id=>!byId.has(id));
+        if(missing.length){
+          const {data:byNameRows,error:nameError}=await c.from('ejercicios')
+            .select('id,nombre')
+            .in('nombre',names);
+          if(nameError) throw nameError;
+          const byName=new Map((byNameRows||[]).map(e=>[String(e.nombre||'').trim(),Number(e.id)]));
+          plan.forEach(x=>{
+            const id=Number(x.id);
+            if(!byId.has(id)){
+              const resolved=byName.get(String(x.name||'').trim());
+              if(Number.isFinite(resolved)) x.id=resolved;
+            }
+          });
+        }
+
+        const unresolved=plan.filter(x=>{
+          const id=Number(x.id);
+          return !Number.isFinite(id);
+        });
+        if(unresolved.length) throw new Error('Hay un ejercicio sin un identificador válido en Supabase.');
 
         const rows=plan.map((x,i)=>({
-          session_id:editingSessionId,
           exercise_id:Number(x.id),
           sort_order:i+1,
-          minutes:Number(x.minutes||10)
+          minutes:Number(x.minutes||10),
+          notes:null
         }));
-        const {error:insertError}=await c.from('training_session_exercises').insert(rows);
-        if(insertError) throw insertError;
+
+        const {data:saved,error:rpcError}=await c.rpc('replace_training_session_exercises',{
+          p_session_id:String(editingSessionId),
+          p_name:name,
+          p_session_date:date,
+          p_duration:duration,
+          p_objective:objective,
+          p_rows:rows
+        });
+        if(rpcError) throw rpcError;
 
         const savedId=editingSessionId;
         setStatus(`Cambios guardados en Supabase: ${name}`);
@@ -3801,10 +3833,10 @@ window.addEventListener('load',()=>{
         editingSessionMeta=null;
         updateSessionSaveButtonLabels();
         await refreshHistory();
-        return {id:savedId,name,session_date:date,duration_minutes:duration,training_session_exercises:rows};
+        return {id:savedId,name,session_date:date,duration_minutes:duration,training_session_exercises:rows,session:saved};
       }catch(err){
         console.error('No se pudieron guardar los cambios de la sesión.',err);
-        setStatus(`No se pudieron guardar los cambios. Supabase respondió con un error: ${err.message||err}`,true);
+        setStatus(`No se pudieron guardar los cambios. La sesión guardada NO se ha modificado: ${err.message||err}`,true);
         return null;
       }
     }
