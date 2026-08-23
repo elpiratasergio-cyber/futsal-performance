@@ -3572,6 +3572,20 @@ window.addEventListener('load',()=>{
     }));
   }
 
+  async function ensureHistoryExercisesForPlan(c,plan){
+    const rows=(plan||[]).map(x=>({exercise_id:Number(x.id)})).filter(x=>Number.isFinite(x.exercise_id));
+    if(!rows.length) throw new Error('La sesión no contiene ejercicios válidos.');
+    // Los ejercicios estándar ya existen en public.exercises. Los ejercicios
+    // creados por el usuario viven en public.ejercicios y deben sincronizarse
+    // antes de insertar la relación training_session_exercises, porque esa tabla
+    // referencia public.exercises mediante una FK.
+    const {error}=await c.rpc('ensure_history_exercises',{
+      p_rows:rows,
+      p_device_key:typeof FP_SHARED_WORKSPACE_KEY!=='undefined' ? FP_SHARED_WORKSPACE_KEY : 'futuro-carmonense-shared-v1'
+    });
+    if(error) throw error;
+  }
+
   async function persistSession(plan, date, name){
     const c=historyClient();
     if(!c) return null;
@@ -3587,6 +3601,7 @@ window.addEventListener('load',()=>{
       objective:document.getElementById('goal')?.value || 'auto', device_key:deviceKey
     }).select('id,name,team,session_date,duration_minutes,objective,notes,created_at').single();
     if(error) throw error;
+    await ensureHistoryExercisesForPlan(c,plan);
     const rows=plan.map((x,i)=>({session_id:data.id,exercise_id:Number(x.id),sort_order:i+1,minutes:Number(x.minutes||10)}));
     const ins=await c.from('training_session_exercises').insert(rows);
     if(ins.error){await c.from('training_sessions').delete().eq('id',data.id);throw ins.error;}
@@ -3604,6 +3619,7 @@ window.addEventListener('load',()=>{
     const missing=ids.filter(id=>!validIds.has(id));
     if(missing.length)throw new Error(`El ejercicio ${missing[0]} no existe en Supabase. Añádelo desde «Mis ejercicios» o la biblioteca antes de guardar.`);
 
+    await ensureHistoryExercisesForPlan(c,plan);
     const {data:existing,error:ee}=await c.from('training_session_exercises').select('id,exercise_id,sort_order,minutes').eq('session_id',id).order('sort_order',{ascending:true});
     if(ee)throw ee;
     const oldRows=existing||[];
