@@ -3575,15 +3575,29 @@ window.addEventListener('load',()=>{
   async function ensureHistoryExercisesForPlan(c,plan){
     const rows=(plan||[]).map(x=>({exercise_id:Number(x.id)})).filter(x=>Number.isFinite(x.exercise_id));
     if(!rows.length) throw new Error('La sesión no contiene ejercicios válidos.');
-    // Los ejercicios estándar ya existen en public.exercises. Los ejercicios
-    // creados por el usuario viven en public.ejercicios y deben sincronizarse
-    // antes de insertar la relación training_session_exercises, porque esa tabla
-    // referencia public.exercises mediante una FK.
+    // IMPORTANTE: training_session_exercises.exercise_id referencia public.exercises.
+    // Los ejercicios creados por el usuario nacen en public.ejercicios, por lo que
+    // antes de guardar sincronizamos tanto los ejercicios de la sesión como TODOS
+    // los ejercicios personales de la biblioteca compartida. Esto evita el FK 23503
+    // incluso si el ejercicio acaba de crearse o procede de una versión anterior.
+    const sharedKey=typeof FP_SHARED_WORKSPACE_KEY!=='undefined' ? FP_SHARED_WORKSPACE_KEY : 'futuro-carmonense-shared-v1';
+    const {data:personal,error:pe}=await c.from('ejercicios').select('id').eq('es_personal',true).eq('device_key',sharedKey);
+    if(pe) throw pe;
+    const all=[...rows,...(personal||[]).map(x=>({exercise_id:Number(x.id)}))];
+    const seen=new Set();
+    const uniqueRows=all.filter(x=>Number.isFinite(x.exercise_id)&&!seen.has(x.exercise_id)&&(seen.add(x.exercise_id),true));
     const {error}=await c.rpc('ensure_history_exercises',{
-      p_rows:rows,
-      p_device_key:typeof FP_SHARED_WORKSPACE_KEY!=='undefined' ? FP_SHARED_WORKSPACE_KEY : 'futuro-carmonense-shared-v1'
+      p_rows:uniqueRows,
+      p_device_key:sharedKey
     });
     if(error) throw error;
+    // Verificación final: nunca intentamos insertar una FK que siga sin existir.
+    const ids=uniqueRows.map(x=>x.exercise_id);
+    const {data:ready,error:re}=await c.from('exercises').select('id').in('id',ids);
+    if(re) throw re;
+    const readyIds=new Set((ready||[]).map(x=>Number(x.id)));
+    const missing=rows.map(x=>x.exercise_id).filter(id=>!readyIds.has(id));
+    if(missing.length) throw new Error(`No se pudo sincronizar el ejercicio ${missing[0]} en la biblioteca interna de Supabase.`);
   }
 
   async function persistSession(plan, date, name){
@@ -3842,6 +3856,15 @@ window.addEventListener('load',()=>{
   }
 
   window.saveCurrentGeneratedSession=function(){return savePlan(session||[]);};
+
+  // Sincroniza silenciosamente Mis ejercicios al abrir/usar el editor, para que
+  // una sesión pueda utilizar cualquier ejercicio personal sin errores de FK.
+  window.syncPersonalExercisesForHistory=async function(){
+    try{
+      const c=historyClient(); if(!c) return;
+      await ensureHistoryExercisesForPlan(c,(EX||[]).filter(x=>x.custom).map(x=>({id:x.id})));
+    }catch(e){ console.warn('No se pudo pre-sincronizar Mis ejercicios:',e); }
+  };
 
   window.loadHistorySession=function(id){
     const c=historyClient();
