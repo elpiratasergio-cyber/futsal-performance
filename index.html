@@ -509,9 +509,6 @@ header .inner,.wrap{width:100%}
 @media(max-width:700px){.fc-detail-grid{grid-template-columns:1fr}}
 </style>
 
-<style id="fc-session-editor-style">
-.session-editor-tools{padding:10px 16px;border-top:1px solid var(--line);background:#f8fbf9;display:grid;gap:8px}.session-editor-add{display:grid;grid-template-columns:1fr auto;gap:8px}.session-editor-add select{min-width:0}.session-editor-actions{display:flex;gap:8px;flex-wrap:wrap}.session-editor-actions button{margin:0!important}.session-editor-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #edf2ef}.session-editor-row:last-child{border-bottom:0}.session-editor-row small{display:block;color:var(--muted);margin-top:2px}.session-editor-row input{width:68px}.session-editor-row button{margin:0!important}.session-editor-save{background:#16a34a!important;color:#fff!important;border-color:#16a34a!important}.session-editor-note{font-size:12px;color:var(--muted);line-height:1.4}@media(max-width:600px){.session-editor-row{grid-template-columns:1fr auto}.session-editor-row input{grid-column:2;grid-row:1}.session-editor-row .editor-change{grid-column:1}.session-editor-row .editor-remove{grid-column:2}.session-editor-add{grid-template-columns:1fr}}
-</style>
 </head><body>
 <header>
   <div class="inner">
@@ -556,7 +553,7 @@ header .inner,.wrap{width:100%}
         <div>
           <p class="hint">Las sesiones generadas quedan como borrador. Solo pasan al historial cuando pulsas «Guardar / comprobar sesión».</p>
         </div>
-        <span class="history-badge">☁️ Supabase</span>
+        <span class="history-badge">☁️ Supabase + copia local</span>
       </div>
       <div class="history-toolbar">
         <div class="history-field small">
@@ -579,7 +576,7 @@ header .inner,.wrap{width:100%}
 
 <section class="panel custom-panel">
   <div class="custom-panel-head">
-    <div><h2>📸 Mis ejercicios</h2><p class="custom-help">Añade tus propios ejercicios con una foto, descripción y datos. Se guardan en Supabase y aparecen en tu biblioteca y en el generador si activas esa opción.</p></div>
+    <div><h2>📸 Mis ejercicios</h2><p class="custom-help">Añade tus propios ejercicios con una foto, descripción y datos. Se guardan en este dispositivo y aparecen en tu biblioteca y en el generador si activas esa opción.</p></div>
     <button class="custom-btn" onclick="openCustomExerciseForm()">＋ Añadir mi ejercicio</button>
   </div>
   <div id="customExerciseStatus" class="history-status"></div>
@@ -2991,13 +2988,9 @@ header .inner,.wrap{width:100%}
 <p><b>Ejecución:</b> Realizar un pase y acelerar inmediatamente hacia una puerta.</p><p><b>Material:</b> Balones + conos</p>
 </details>
 <button class="add" onclick="addExercise(157)">＋ Añadir a sesión</button></article></div><div id="empty" class="empty">No hay ejercicios con esos filtros.</div></div>
-<div id="session" class="session"><div class="sessionHead"><b id="sessionPanelTitle">Mi sesión · primeros 20'</b><button onclick="toggleSession()">✕</button></div><div id="sessionList" class="sessionList"></div>
-<div id="sessionEditorTools" class="session-editor-tools">
-<div class="session-editor-note" id="sessionEditorNote">Puedes cambiar, eliminar o añadir ejercicios antes de guardar.</div>
-<div class="session-editor-add"><select id="sessionAddExerciseSelect"><option value="">＋ Seleccionar ejercicio para añadir…</option></select><button class="light" onclick="addSelectedSessionExercise()">＋ Añadir</button></div>
-<div class="session-editor-actions"><button class="green session-editor-save" id="sessionSaveButton" onclick="saveCurrentSessionEditor()">💾 Guardar sesión</button><button class="light" onclick="exportSession()">⬇ Exportar sesión</button><button onclick="clearSession()" style="margin-top:0;background:#fee2e2;color:#991b1b">Vaciar</button></div>
-</div>
-<div class="sessionFoot"><div class="total">Tiempo total: <span id="totalTime">0.0</span> min</div><div id="sessionWarn" class="warn"></div></div></div>
+<div id="session" class="session"><div class="sessionHead"><b>Mi sesión · primeros 20'</b><button onclick="toggleSession()">✕</button></div><div id="sessionList" class="sessionList"></div>
+<div class="sessionFoot"><div class="total">Tiempo total: <span id="totalTime">0.0</span> min</div><div id="sessionWarn" class="warn"></div><button class="green" onclick="exportSession()" style="margin-top:8px">⬇ Exportar sesión</button>
+<button onclick="clearSession()" style="margin-top:8px;background:#fee2e2;color:#991b1b">Vaciar</button></div></div>
 
 <section id="seasonTab" style="display:none">
   <div class="season-card">
@@ -3217,32 +3210,13 @@ async function deleteCustomExercise(id){
   }
 }
 function customVisual(x){return x.photo?`<img class="custom-photo" src="${x.photo}" alt="${escHTML(x.name)}">`:renderExerciseDiagram(x)}
-let session=[];
-let sessionEditId=null, sessionEditName='', sessionEditDate='';
-function uniq(a){return [...new Set(a)].sort()}
-function fill(id,vals){const e=document.getElementById(id);if(!e)return;vals.forEach(v=>{let o=document.createElement('option');o.value=v;o.textContent=v;e.appendChild(o)})}
-function populateSessionAddSelect(){
- const el=document.getElementById('sessionAddExerciseSelect');if(!el)return;const cur=el.value;el.innerHTML='<option value="">＋ Seleccionar ejercicio para añadir…</option>';
- const groups=new Map();EX.forEach(x=>{const g=x.custom?'Mis ejercicios':(x.cat||'Otros');if(!groups.has(g))groups.set(g,[]);groups.get(g).push(x)});
- [...groups.keys()].sort((a,b)=>a.localeCompare(b,'es')).forEach(g=>{const og=document.createElement('optgroup');og.label=g;groups.get(g).sort((a,b)=>String(a.name).localeCompare(String(b.name),'es')).forEach(x=>{const o=document.createElement('option');o.value=String(x.id);o.textContent=x.name+(x.custom?' · ⭐ Mis ejercicios':'');og.appendChild(o)});el.appendChild(og)});
- if([...el.options].some(o=>o.value===cur))el.value=cur;
-}
-function openSessionPanel(opts={}){if(Object.prototype.hasOwnProperty.call(opts,'editId')){sessionEditId=opts.editId;sessionEditName=opts.name||'';sessionEditDate=opts.date||''}const t=document.getElementById('sessionPanelTitle'),n=document.getElementById('sessionEditorNote'),b=document.getElementById('sessionSaveButton');if(t)t.textContent=sessionEditId?`Editar sesión · ${sessionEditName||'20 minutos'}`:`Mi sesión · primeros 20'`;if(n)n.textContent=sessionEditId?'Edita, cambia, añade o elimina ejercicios. Los cambios se guardan en Supabase solo al pulsar «Guardar sesión».':'Puedes cambiar, eliminar o añadir ejercicios antes de guardar. Nada se guarda automáticamente.';if(b)b.style.display=(sessionEditId||session.length)?'inline-flex':'none';populateSessionAddSelect();document.getElementById('session')?.classList.add('show');}
-function addExercise(id){const x=EX.find(e=>Number(e.id)===Number(id));if(!x)return;session.push({...x,minutes:sessionEditId?10:2});renderSession();openSessionPanel({});}
-function addSelectedSessionExercise(){const el=document.getElementById('sessionAddExerciseSelect'),id=Number(el?.value);if(!Number.isFinite(id)||!id)return;const x=EX.find(e=>Number(e.id)===id);if(!x)return;session.push({...x,minutes:sessionEditId?10:2});el.value='';renderSession();}
-function changeSessionExercise(i){populateSessionAddSelect();const el=document.getElementById('sessionAddExerciseSelect');if(!el)return;el.value='';const hint=document.getElementById('sessionChangeHint');if(hint)hint.remove();const h=document.createElement('div');h.id='sessionChangeHint';h.className='session-editor-note';h.textContent=`Selecciona el nuevo ejercicio para sustituir el nº ${i+1} y pulsa «Cambiar seleccionado».`;const add=document.createElement('button');add.className='light';add.textContent='🔄 Cambiar seleccionado';add.onclick=()=>{const id=Number(el.value),x=EX.find(e=>Number(e.id)===id);if(!x)return;session[i]={...x,minutes:Number(session[i].minutes||10)};el.value='';h.remove();add.remove();renderSession()};document.getElementById('sessionEditorTools')?.prepend(h);document.getElementById('sessionEditorTools')?.prepend(add);el.focus();}
-function removeExercise(i){session.splice(i,1);renderSession()}
-function renderSession(){const list=document.getElementById('sessionList');if(!list)return;list.innerHTML='';session.forEach((x,i)=>{const d=document.createElement('div');d.className='session-editor-row';d.innerHTML=`<div><b>${i+1}. ${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.intensity)}</small></div><input type="number" min="0.5" max="20" step="0.5" value="${Number(x.minutes||0)}" onchange="session[${i}].minutes=Number(this.value);renderSession()"><div class="session-editor-actions"><button class="light editor-change" onclick="changeSessionExercise(${i})">🔄 Cambiar</button><button class="remove editor-remove" onclick="removeExercise(${i})">×</button></div>`;list.appendChild(d)});const t=session.reduce((a,x)=>a+Number(x.minutes||0),0);document.getElementById('totalTime').textContent=t.toFixed(1);document.getElementById('sessionCount').textContent=session.length;document.getElementById('sessionWarn').textContent=t>20?'⚠ La sesión supera 20 minutos.':t<18?'Puedes añadir 1-2 minutos de transición/pausa':'';const b=document.getElementById('sessionSaveButton');if(b)b.style.display=(sessionEditId||session.length)?'inline-flex':'none';populateSessionAddSelect()}
-function toggleSession(){const e=document.getElementById('session');e?.classList.toggle('show');if(e?.classList.contains('show')){populateSessionAddSelect();renderSession()}}
-function clearSession(){session=[];sessionEditId=null;sessionEditName='';sessionEditDate='';renderSession()}
-function saveCurrentSessionEditor(){if(window.saveCurrentGeneratedSession)return window.saveCurrentGeneratedSession()}
-function renderGeneratedSession(title='Sesión · 20 minutos'){
- const out=document.getElementById('generated');if(!out)return;
- out.style.display='block';
- out.innerHTML=`<div class="generated-session-head"><h3>${escHTML(title)}</h3><div class="actions"><button class="light" onclick="openSessionPanel({editId:null,name:'',date:''})">✏️ Editar ejercicios</button><button class="light" onclick="exportSession()">⬇ Exportar</button></div></div>`+
- session.map((x,i)=>`<div class="gitem"><b>${i+1}</b><div><b>${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.objective)}</small></div><b>${Number(x.minutes||0)}'</b><button class="light" onclick="openSessionPanel({editId:null,name:'',date:''});changeSessionExercise(${i})">🔄 Cambiar</button></div>`).join('');
-}
-
+let session=[];function uniq(a){return [...new Set(a)].sort()}function fill(id,vals){const e=document.getElementById(id);vals.forEach(v=>{let o=document.createElement('option');o.value=v;o.textContent=v;e.appendChild(o)})}
+fill('cat',uniq(EX.map(x=>x.cat)));fill('type',uniq(EX.map(x=>x.type)));fill('ball',uniq(EX.map(x=>x.ball)));fill('intensity',uniq(EX.map(x=>x.intensity)));fill('playersFilter',uniq(EX.map(x=>x.players)));
+function filterCards(){const q=document.getElementById('search').value.toLowerCase(),f={cat:cat.value,type:type.value,ball:ball.value,intensity:intensity.value,players:playersFilter.value};let n=0;document.querySelectorAll('.card').forEach(c=>{const x=EX.find(e=>e.id==c.dataset.id),s=c.dataset.search;const ok=(!q||s.includes(q))&&(!f.cat||x.cat==f.cat)&&(!f.type||x.type==f.type)&&(!f.ball||x.ball==f.ball)&&(!f.intensity||x.intensity==f.intensity)&&(!f.players||x.players==f.players);c.style.display=ok?'flex':'none';if(ok)n++});document.getElementById('count').textContent=n;document.getElementById('empty').style.display=n?'none':'block'}
+function randomVisible(){const a=[...document.querySelectorAll('.card')].filter(c=>c.style.display!=='none');if(!a.length)return;const c=a[Math.floor(Math.random()*a.length)];c.scrollIntoView({behavior:'smooth',block:'center'});c.style.outline='4px solid #86efac';setTimeout(()=>c.style.outline='',1200)}
+function addExercise(id){const x=EX.find(e=>e.id==id);session.push({...x,minutes:2});renderSession();document.getElementById('session').classList.add('show')}function removeExercise(i){session.splice(i,1);renderSession()}
+function renderSession(){const list=document.getElementById('sessionList');list.innerHTML='';session.forEach((x,i)=>{const d=document.createElement('div');d.className='item';d.innerHTML=`<div><b>${i+1}. ${x.name}</b><small>${x.cat} · ${x.intensity}</small></div><input type="number" min="0.5" max="10" step="0.5" value="${x.minutes}" onchange="session[${i}].minutes=Number(this.value);renderSession()"><button class="remove" onclick="removeExercise(${i})">×</button>`;list.appendChild(d)});const t=session.reduce((a,x)=>a+Number(x.minutes||0),0);document.getElementById('totalTime').textContent=t.toFixed(1);document.getElementById('sessionCount').textContent=session.length;document.getElementById('sessionWarn').textContent=t>20?'⚠ La sesión supera 20 minutos.':t<18?'Puedes añadir 1-2 minutos de transición/pausa.':''}
+function toggleSession(){document.getElementById('session').classList.toggle('show')}function clearSession(){session=[];renderSession()}
 function goalMatch(x,g){if(g==='accel')return /Aceleración|Velocidad/.test(x.cat+x.type);if(g==='cod')return /Frenada|COD|Cambio de dirección|Agilidad/.test(x.cat+x.type);if(g==='power')return /Potencia|reactiv|Fuerza reactiva/.test(x.cat+x.type);if(g==='tech')return /Técnica|Velocidad/.test(x.cat+x.type);if(g==='specific')return /Integrado|Específico|Finalización|Rondo|Posesión/.test(x.cat+x.type);if(g==='react')return /Reacción|Agilidad/.test(x.cat+x.type);return true}
 function pick(a,u){let b=a.filter(x=>!u.has(x.id));return b.length?b[Math.floor(Math.random()*b.length)]:a[Math.floor(Math.random()*a.length)]}
 function isActivationOrIndividual(x){return x.cat==='Activación'||x.mode==='Individual'}
@@ -3376,7 +3350,9 @@ async function generate20(){
     const plan=[{...first,minutes:10},{...second,minutes:10}];
     session=plan;
     renderSession();
-    renderGeneratedSession('Sesión · 20 minutos · 2 ejercicios de 10 minutos');
+    const out=document.getElementById('generated');
+    out.style.display='block';
+    out.innerHTML='<h3>Sesión · 20 minutos · 2 ejercicios de 10 minutos</h3>'+plan.map((x,i)=>`<div class="gitem clickable" onclick="openExercise(${x.id})"><b>${i+1}</b><div><b>${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.objective)}</small></div><b>${x.minutes}'</b></div>`).join('');
   }catch(err){
     console.error(err);
     alert(`No se ha podido generar la sesión.\n\n${err?.message||err}`);
@@ -3572,92 +3548,21 @@ window.addEventListener('load',()=>{
     }));
   }
 
-  async function ensureHistoryExercisesForPlan(c,plan){
-    const rows=(plan||[]).map(x=>({exercise_id:Number(x.id)})).filter(x=>Number.isFinite(x.exercise_id));
-    if(!rows.length) throw new Error('La sesión no contiene ejercicios válidos.');
-    // IMPORTANTE: training_session_exercises.exercise_id referencia public.exercises.
-    // Los ejercicios creados por el usuario nacen en public.ejercicios, por lo que
-    // antes de guardar sincronizamos tanto los ejercicios de la sesión como TODOS
-    // los ejercicios personales de la biblioteca compartida. Esto evita el FK 23503
-    // incluso si el ejercicio acaba de crearse o procede de una versión anterior.
-    const sharedKey=typeof FP_SHARED_WORKSPACE_KEY!=='undefined' ? FP_SHARED_WORKSPACE_KEY : 'futuro-carmonense-shared-v1';
-    const {data:personal,error:pe}=await c.from('ejercicios').select('id').eq('es_personal',true).eq('device_key',sharedKey);
-    if(pe) throw pe;
-    const all=[...rows,...(personal||[]).map(x=>({exercise_id:Number(x.id)}))];
-    const seen=new Set();
-    const uniqueRows=all.filter(x=>Number.isFinite(x.exercise_id)&&!seen.has(x.exercise_id)&&(seen.add(x.exercise_id),true));
-    const {error}=await c.rpc('ensure_history_exercises',{
-      p_rows:uniqueRows,
-      p_device_key:sharedKey
-    });
-    if(error) throw error;
-    // Verificación final: nunca intentamos insertar una FK que siga sin existir.
-    const ids=uniqueRows.map(x=>x.exercise_id);
-    const {data:ready,error:re}=await c.from('exercises').select('id').in('id',ids);
-    if(re) throw re;
-    const readyIds=new Set((ready||[]).map(x=>Number(x.id)));
-    const missing=rows.map(x=>x.exercise_id).filter(id=>!readyIds.has(id));
-    if(missing.length) throw new Error(`No se pudo sincronizar el ejercicio ${missing[0]} en la biblioteca interna de Supabase.`);
-  }
-
   async function persistSession(plan, date, name){
     const c=historyClient();
     if(!c) return null;
-    const ids=plan.map(x=>Number(x.id)).filter(Number.isFinite);
-    if(!ids.length) throw new Error('La sesión no contiene ejercicios válidos.');
-    const {data:valid,error:ve}=await c.from('ejercicios').select('id').in('id',ids);
-    if(ve) throw ve;
-    const validIds=new Set((valid||[]).map(r=>Number(r.id)));
-    const missing=ids.filter(id=>!validIds.has(id));
-    if(missing.length) throw new Error(`Hay ejercicios que no existen en la biblioteca de Supabase: ${missing.join(', ')}`);
     const {data,error}=await c.from('training_sessions').insert({
       name, team:'Senior', session_date:date, duration_minutes:20,
-      objective:document.getElementById('goal')?.value || 'auto', device_key:deviceKey
+      objective:document.getElementById('goal')?.value || 'auto',
+      device_key:deviceKey
     }).select('id,name,team,session_date,duration_minutes,objective,notes,created_at').single();
     if(error) throw error;
-    await ensureHistoryExercisesForPlan(c,plan);
-    const rows=plan.map((x,i)=>({session_id:data.id,exercise_id:Number(x.id),sort_order:i+1,minutes:Number(x.minutes||10)}));
+    const rows=plan.map((x,i)=>({
+      session_id:data.id, exercise_id:Number(x.id), sort_order:i+1, minutes:Number(x.minutes||10)
+    }));
     const ins=await c.from('training_session_exercises').insert(rows);
-    if(ins.error){await c.from('training_sessions').delete().eq('id',data.id);throw ins.error;}
+    if(ins.error) throw ins.error;
     return {...data,training_session_exercises:rows};
-  }
-
-  async function updatePersistedSession(id,plan,date,name){
-    const c=historyClient();if(!c)throw new Error('Supabase no está disponible.');
-    if(!id)throw new Error('No se ha identificado la sesión que quieres editar.');
-    const ids=plan.map(x=>Number(x.id)).filter(Number.isFinite);
-    if(!ids.length)throw new Error('La sesión debe tener al menos un ejercicio.');
-    const {data:valid,error:ve}=await c.from('ejercicios').select('id').in('id',ids);
-    if(ve)throw ve;
-    const validIds=new Set((valid||[]).map(r=>Number(r.id)));
-    const missing=ids.filter(id=>!validIds.has(id));
-    if(missing.length)throw new Error(`El ejercicio ${missing[0]} no existe en Supabase. Añádelo desde «Mis ejercicios» o la biblioteca antes de guardar.`);
-
-    await ensureHistoryExercisesForPlan(c,plan);
-    const {data:existing,error:ee}=await c.from('training_session_exercises').select('id,exercise_id,sort_order,minutes').eq('session_id',id).order('sort_order',{ascending:true});
-    if(ee)throw ee;
-    const oldRows=existing||[];
-    const common=Math.min(oldRows.length,plan.length);
-
-    // Primero actualizamos/reutilizamos filas existentes. Así un cambio de ejercicio no
-    // elimina la sesión ni deja una referencia a un ejercicio inexistente.
-    for(let i=0;i<common;i++){
-      const {error}=await c.from('training_session_exercises').update({exercise_id:Number(plan[i].id),sort_order:i+1,minutes:Number(plan[i].minutes||10)}).eq('id',oldRows[i].id).eq('session_id',id);
-      if(error)throw error;
-    }
-    if(plan.length>oldRows.length){
-      const extra=plan.slice(oldRows.length).map((x,j)=>({session_id:id,exercise_id:Number(x.id),sort_order:oldRows.length+j+1,minutes:Number(x.minutes||10)}));
-      const {error}=await c.from('training_session_exercises').insert(extra);
-      if(error)throw error;
-    }
-    if(plan.length<oldRows.length){
-      const obsolete=oldRows.slice(plan.length).map(r=>r.id);
-      const {error}=await c.from('training_session_exercises').delete().in('id',obsolete).eq('session_id',id);
-      if(error)throw error;
-    }
-    const {data,error}=await c.from('training_sessions').update({name,session_date:date,duration_minutes:20,objective:document.getElementById('goal')?.value||'auto'}).eq('id',id).select('id,name,team,session_date,duration_minutes,objective,notes,created_at').single();
-    if(error)throw error;
-    return data;
   }
 
   function monthKey(date){
@@ -3821,32 +3726,41 @@ window.addEventListener('load',()=>{
   let lastGeneratedPlanKey='';
 
   async function savePlan(plan){
-    if(!plan?.length){setStatus('La sesión no tiene ejercicios.',true);return null;}
+    if(!plan?.length)return;
+
+    const meta=await computeNextSessionMeta();
+    const date=meta.date;
+    const name=meta.name;
+    const planKey=plan.map(x=>Number(x.id)).join(',');
+    if(planKey && planKey===lastSavedPlanKey && planKey===lastGeneratedPlanKey){
+      setStatus(`Esta sesión ya está guardada: ${name}`);
+      return;
+    }
+
     try{
-      if(sessionEditId){
-        const date=sessionEditDate||document.getElementById('sessionDate')?.value||normalizeSessionDate();
-        const name=sessionEditName||document.getElementById('sessionName')?.value||defaultName(date,1);
-        const saved=await updatePersistedSession(sessionEditId,plan,date,name);
-        sessionEditName=saved.name||name;sessionEditDate=saved.session_date||date;
-        setStatus(`Sesión actualizada en Supabase: ${saved.name||name}`);
-        await refreshHistory();
-        renderGeneratedSession(saved.name||name);
-        return saved;
-      }
-      const meta=await computeNextSessionMeta();
-      const date=meta.date,name=meta.name;
-      const planKey=plan.map(x=>Number(x.id)).join(',');
-      if(planKey && planKey===lastSavedPlanKey && planKey===lastGeneratedPlanKey){setStatus(`Esta sesión ya está guardada: ${name}`);return null;}
       const cloud=await fetchCloudHistory();
-      if(!Array.isArray(cloud))throw new Error('Supabase no está disponible.');
+      if(!Array.isArray(cloud)) throw new Error('Supabase no está disponible.');
       const cloudExisting=cloud.find(s=>{
-        const ids=(s.training_session_exercises||[]).slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map(e=>Number(e.exercise_id));
-        return String(s.session_date||'')===String(date)&&ids.length===plan.length&&ids.every((id,i)=>id===Number(plan[i].id));
+        const ids=(s.training_session_exercises||[])
+          .slice()
+          .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0))
+          .map(e=>Number(e.exercise_id));
+        return String(s.session_date||'')===String(date) &&
+               ids.length===plan.length &&
+               ids.every((id,i)=>id===Number(plan[i].id));
       });
-      if(cloudExisting){setStatus(`Esta sesión ya está guardada en Supabase: ${cloudExisting.name||name}`);await refreshHistory();return cloudExisting;}
+      if(cloudExisting){
+        document.getElementById('sessionName').value=cloudExisting.name || name;
+        setStatus(`Esta sesión ya está guardada en Supabase: ${cloudExisting.name || name}`);
+        await refreshHistory();
+        return cloudExisting;
+      }
+
       const cloudSaved=await persistSession(plan,date,name);
-      if(!cloudSaved)throw new Error('No se pudo guardar en Supabase.');
-      setStatus(`Guardada en Supabase: ${name}`);lastSavedPlanKey=planKey;await refreshHistory();
+      if(!cloudSaved) throw new Error('No se pudo guardar en Supabase.');
+      setStatus(`Guardada en Supabase: ${name}`);
+      lastSavedPlanKey=planKey;
+      await refreshHistory();
       return cloudSaved;
     }catch(err){
       console.error('No se pudo guardar la sesión en Supabase.',err);
@@ -3855,31 +3769,40 @@ window.addEventListener('load',()=>{
     }
   }
 
-  window.saveCurrentGeneratedSession=function(){return savePlan(session||[]);};
-
-  // Sincroniza silenciosamente Mis ejercicios al abrir/usar el editor, para que
-  // una sesión pueda utilizar cualquier ejercicio personal sin errores de FK.
-  window.syncPersonalExercisesForHistory=async function(){
-    try{
-      const c=historyClient(); if(!c) return;
-      await ensureHistoryExercisesForPlan(c,(EX||[]).filter(x=>x.custom).map(x=>({id:x.id})));
-    }catch(e){ console.warn('No se pudo pre-sincronizar Mis ejercicios:',e); }
-  };
+  window.saveCurrentGeneratedSession=function(){savePlan(session||[]);};
 
   window.loadHistorySession=function(id){
+    const h=localHistory().find(x=>x.id===id);
+    if(h){
+      const plan=(h.training_session_exercises||[]).map(e=>{
+        const x=EX.find(z=>Number(z.id)===Number(e.exercise_id));
+        return x?{...x,minutes:Number(e.minutes||10)}:null;
+      }).filter(Boolean);
+      if(plan.length){
+        session=plan; renderSession();
+        document.getElementById('session').classList.add('show');
+        const out=document.getElementById('generated');
+        out.style.display='block';
+        out.innerHTML='<div class="generated-session-head"><h3>'+escHTML(h.name)+'</h3><div class="actions"><button class="light" onclick="exportSession()">⬇ Exportar</button></div></div>'+
+          plan.map((x,i)=>`<div class="gitem clickable" onclick="openExercise(${x.id})"><b>${i+1}</b><div><b>${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.objective)}</small></div><b>${x.minutes}'</b></div>`).join('');
+        return;
+      }
+    }
     const c=historyClient();
-    if(!c||!id){setStatus('No se pudo abrir la sesión.',true);return;}
-    c.from('training_sessions').select('id,name,session_date,duration_minutes,objective,training_session_exercises(id,exercise_id,sort_order,minutes)').eq('id',id).single().then(({data,error})=>{
-      if(error){setStatus(`No se pudo abrir la sesión: ${error.message||error}`,true);return;}
-      const rows=(data.training_session_exercises||[]).slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
-      const plan=rows.map(e=>{const x=EX.find(z=>Number(z.id)===Number(e.exercise_id));return x?{...x,minutes:Number(e.minutes||10)}:null}).filter(Boolean);
-      if(!plan.length){setStatus('No se encontraron ejercicios válidos en esa sesión.',true);return;}
-      session=plan;sessionEditId=String(data.id);sessionEditName=data.name||'';sessionEditDate=data.session_date||'';
-      const dateEl=document.getElementById('sessionDate'),nameEl=document.getElementById('sessionName');if(dateEl)dateEl.value=sessionEditDate;if(nameEl)nameEl.value=sessionEditName;
-      renderSession();openSessionPanel({editId:String(data.id),name:sessionEditName,date:sessionEditDate});
-      renderGeneratedSession(sessionEditName||'Sesión guardada');
-      setStatus('Sesión cargada. Puedes editar ejercicios y pulsar «Guardar sesión».');
-    });
+    if(c && id){
+      c.from('training_sessions').select('id,name,session_date,duration_minutes,training_session_exercises(id,exercise_id,sort_order,minutes)').eq('id',id).single().then(({data,error})=>{
+        if(error){setStatus('No se pudo abrir la sesión.',true);return;}
+        const plan=(data.training_session_exercises||[]).sort((a,b)=>a.sort_order-b.sort_order).map(e=>{
+          const x=EX.find(z=>Number(z.id)===Number(e.exercise_id));
+          return x?{...x,minutes:Number(e.minutes||10)}:null;
+        }).filter(Boolean);
+        if(!plan.length){setStatus('No se encontraron los ejercicios de esa sesión.',true);return;}
+        session=plan;renderSession();document.getElementById('session').classList.add('show');
+        const out=document.getElementById('generated');out.style.display='block';
+        out.innerHTML='<div class="generated-session-head"><h3>'+escHTML(data.name)+'</h3></div>'+
+          plan.map((x,i)=>`<div class="gitem clickable" onclick="openExercise(${x.id})"><b>${i+1}</b><div><b>${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.objective)}</small></div><b>${x.minutes}'</b></div>`).join('');
+      });
+    }
   };
 
   window.deleteHistorySession=async function(id){
@@ -5753,137 +5676,60 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
 <script id="fc-infantil-cloud-persistence-safe">
 (function(){
   'use strict';
-
   var TABLE='infantil_weekly_plans';
   var HISTORY_KEY='futsalPerformanceInfantilWeeklyV3';
-  var DEVICE_KEY='fp_device_key_v1';
-
-  function getDeviceKey(){
-    try{
-      var key=localStorage.getItem(DEVICE_KEY);
-      if(!key){
-        key=(window.crypto && typeof window.crypto.randomUUID==='function')
-          ? window.crypto.randomUUID()
-          : 'fp-'+Date.now()+'-'+Math.random().toString(36).slice(2);
-        localStorage.setItem(DEVICE_KEY,key);
-      }
-      return key;
-    }catch(e){ return 'fp-fallback'; }
-  }
+  /* Supabase is the shared source of truth. Do NOT use a per-device key. */
+  var SHARED_KEY='fc-infantil-shared-v1';
 
   function client(){
     try{
       if(!window.supabase || typeof window.supabase.createClient!=='function') return null;
-      return window.supabase.createClient(
-        SUPABASE_URL,
-        SUPABASE_PUBLISHABLE_KEY,
-        {global:{headers:{'x-device-key':getDeviceKey()}}}
-      );
-    }catch(e){
-      console.warn('Supabase infantil no disponible:',e);
-      return null;
-    }
+      return window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,
+        {global:{headers:{'x-device-key':SHARED_KEY}}});
+    }catch(e){console.warn('Supabase infantil no disponible:',e);return null;}
   }
-
   function localWeeks(){
-    try{
-      var v=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
-      return Array.isArray(v)?v:[];
-    }catch(e){ return []; }
+    try{var v=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');return Array.isArray(v)?v:[];}
+    catch(e){return [];}
   }
-
-  function saveLocal(weeks){
-    localStorage.setItem(HISTORY_KEY,JSON.stringify(Array.isArray(weeks)?weeks:[]));
-  }
-
-  function mergeWeeks(cloud,local){
-    var map=new Map();
-
-    (Array.isArray(cloud)?cloud:[]).forEach(function(w){
-      if(w && w.weekNo!=null) map.set(Number(w.weekNo),w);
-    });
-
-    // La copia local gana si existe, para no pisar una semana recién modificada.
-    (Array.isArray(local)?local:[]).forEach(function(w){
-      if(w && w.weekNo!=null) map.set(Number(w.weekNo),w);
-    });
-
-    return Array.from(map.values()).sort(function(a,b){
-      return Number(a.weekNo)-Number(b.weekNo);
-    });
-  }
-
-  function redraw(weeks){
-    var ordered=(Array.isArray(weeks)?weeks:[]).sort(function(a,b){
-      return Number(a.weekNo)-Number(b.weekNo);
-    });
-    if(typeof window.render==='function') window.render(ordered);
-  }
-
-  function summary(message){
-    var el=document.getElementById('seasonSummary');
-    if(el) el.innerHTML='<div class="season-note">'+message+'</div>';
-  }
+  function saveLocal(v){try{localStorage.setItem(HISTORY_KEY,JSON.stringify(Array.isArray(v)?v:[]));}catch(e){}}
+  function ordered(v){return (Array.isArray(v)?v:[]).slice().sort(function(a,b){return Number(a.weekNo||0)-Number(b.weekNo||0);});}
+  function redraw(v){if(typeof window.render==='function')window.render(ordered(v));}
+  function summary(m){var e=document.getElementById('seasonSummary');if(e)e.innerHTML='<div class="season-note">'+m+'</div>';}
 
   async function fetchCloud(){
-    var c=client();
-    if(!c) return null;
-
-    var r=await c.from(TABLE)
-      .select('week_no,plan,created_at,updated_at')
-      .eq('device_key',getDeviceKey())
-      .order('week_no',{ascending:true});
-
-    if(r.error) throw r.error;
+    var c=client();if(!c)throw new Error('Supabase no está disponible.');
+    var r=await c.from(TABLE).select('week_no,plan,created_at,updated_at')
+      .eq('device_key',SHARED_KEY).order('week_no',{ascending:true});
+    if(r.error)throw r.error;
     return (r.data||[]).map(function(x){return x.plan;}).filter(Boolean);
   }
-
   async function saveCloud(week){
-    var c=client();
-    if(!c) throw new Error('Supabase no está disponible.');
-
-    var r=await c.from(TABLE).upsert({
-      device_key:getDeviceKey(),
-      week_no:Number(week.weekNo),
-      plan:week,
-      updated_at:new Date().toISOString()
-    },{onConflict:'device_key,week_no'});
-
-    if(r.error) throw r.error;
+    var c=client();if(!c)throw new Error('Supabase no está disponible.');
+    if(!week||week.weekNo==null)throw new Error('No hay una semana válida para guardar.');
+    var r=await c.from(TABLE).upsert({device_key:SHARED_KEY,week_no:Number(week.weekNo),plan:week,updated_at:new Date().toISOString()},{onConflict:'device_key,week_no'});
+    if(r.error)throw r.error;
   }
-
-  async function deleteCloud(weekNo){
-    var c=client();
-    if(!c) throw new Error('Supabase no está disponible.');
-
-    var r=await c.from(TABLE).delete()
-      .eq('device_key',getDeviceKey())
-      .eq('week_no',Number(weekNo));
-
-    if(r.error) throw r.error;
+  async function deleteCloud(n){
+    var c=client();if(!c)throw new Error('Supabase no está disponible.');
+    var r=await c.from(TABLE).delete().eq('device_key',SHARED_KEY).eq('week_no',Number(n));
+    if(r.error)throw r.error;
   }
-
   async function deleteCloudAll(){
-    var c=client();
-    if(!c) throw new Error('Supabase no está disponible.');
-
-    var r=await c.from(TABLE).delete()
-      .eq('device_key',getDeviceKey());
-
-    if(r.error) throw r.error;
+    var c=client();if(!c)throw new Error('Supabase no está disponible.');
+    var r=await c.from(TABLE).delete().eq('device_key',SHARED_KEY);
+    if(r.error)throw r.error;
   }
 
   async function hydrate(){
     try{
-      var local=localWeeks();
-      var cloud=await fetchCloud();
-      if(cloud===null) return;
-
-      var merged=mergeWeeks(cloud,local);
-      saveLocal(merged);
-      redraw(merged);
+      var cloud=ordered(await fetchCloud());
+      saveLocal(cloud);redraw(cloud);
+      var current=window.__infantilWeek&&cloud.find(function(w){return Number(w.weekNo)===Number(window.__infantilWeek.weekNo);});
+      if(current)window.__infantilWeek=current;
     }catch(e){
       console.warn('No se pudieron sincronizar las semanas infantiles:',e);
+      /* Solo respaldo visual; nunca se mezcla con la nube ni se usa para guardar. */
       redraw(localWeeks());
     }
   }
@@ -5891,134 +5737,53 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
   async function saveCurrent(){
     var input=document.getElementById('seasonWeek');
     var selected=Math.max(1,Number(input&&input.value)||1);
-    var local=localWeeks();
     var week=window.__infantilWeek;
-
-    if(!week || Number(week.weekNo)!==selected){
-      week=local.find(function(w){return Number(w.weekNo)===selected;});
-    }
-
-    if(!week){
-      alert('Genera primero la Semana '+selected+' y después pulsa «Guardar semana».');
-      return;
-    }
-
+    if(!week||Number(week.weekNo)!==selected)week=localWeeks().find(function(w){return Number(w.weekNo)===selected;});
+    if(!week){alert('Genera primero la Semana '+selected+' y después pulsa «Guardar semana».');return;}
     try{
+      /* Guardamos el objeto completo: no se elimina objetivo, realización, montaje, material ni esquema. */
       await saveCloud(week);
-
-      var cloud=await fetchCloud();
-      var merged=mergeWeeks(cloud||[],local);
-      saveLocal(merged);
-      window.__infantilWeek=week;
-      redraw(merged);
-
-      var next=Math.min(40,Number(week.weekNo)+1);
-      if(input) input.value=next;
-      summary('Semana '+week.weekNo+' guardada correctamente. <b>Semana '+next+' preparada</b> para generar.');
-    }catch(e){
-      console.error('Error guardando Semana Infantil:',e);
-      alert('No se ha podido guardar la semana.\n\n'+(e&&e.message?e.message:String(e)));
-    }
+      var cloud=ordered(await fetchCloud());
+      var saved=cloud.find(function(w){return Number(w.weekNo)===Number(week.weekNo);});
+      if(!saved)throw new Error('Supabase no devolvió la semana después de guardarla.');
+      saveLocal(cloud);window.__infantilWeek=saved;redraw(cloud);
+      var next=Math.min(40,Number(saved.weekNo)+1);if(input)input.value=next;
+      summary('Semana '+saved.weekNo+' guardada correctamente en Supabase. <b>Semana '+next+' preparada</b> para generar.');
+    }catch(e){console.error(e);alert('No se ha podido guardar la semana en Supabase.\n\n'+(e&&e.message?e.message:String(e)));}
   }
 
   async function loadSelected(){
-    var input=document.getElementById('seasonWeek');
-    var selected=Math.max(1,Number(input&&input.value)||1);
-
+    var input=document.getElementById('seasonWeek');var selected=Math.max(1,Number(input&&input.value)||1);
     try{
-      var local=localWeeks();
-      var cloud=await fetchCloud();
-      var merged=mergeWeeks(cloud||[],local);
-      saveLocal(merged);
-
-      var week=merged.find(function(w){return Number(w.weekNo)===selected;});
-      if(!week){
-        alert('No existe una Semana '+selected+' guardada.');
-        return;
-      }
-
-      window.__infantilWeek=week;
-      redraw(merged);
-      summary('Semana '+selected+' cargada correctamente.');
-    }catch(e){
-      console.error('Error cargando semanas infantiles:',e);
-      alert('No se han podido cargar las semanas guardadas.\n\n'+(e&&e.message?e.message:String(e)));
-    }
+      var cloud=ordered(await fetchCloud());saveLocal(cloud);
+      var week=cloud.find(function(w){return Number(w.weekNo)===selected;});
+      if(!week){alert('No existe una Semana '+selected+' guardada en Supabase.');return;}
+      window.__infantilWeek=week;redraw(cloud);summary('Semana '+selected+' cargada correctamente desde Supabase.');
+    }catch(e){console.error(e);alert('No se han podido cargar las semanas desde Supabase.\n\n'+(e&&e.message?e.message:String(e)));}
   }
 
-  async function deleteSingle(weekNo){
+  async function deleteSingle(n){
+    if(!confirm('¿Eliminar únicamente la Semana '+n+'? Las demás semanas se mantendrán.'))return;
     try{
-      await deleteCloud(weekNo);
-
-      var remaining=localWeeks().filter(function(w){
-        return Number(w.weekNo)!==Number(weekNo);
-      });
-      saveLocal(remaining);
-
-      if(window.__infantilWeek && Number(window.__infantilWeek.weekNo)===Number(weekNo)){
-        window.__infantilWeek=null;
-      }
-
-      redraw(remaining);
-      summary('Semana '+weekNo+' eliminada. Las demás semanas se mantienen.');
-    }catch(e){
-      console.error('Error eliminando Semana Infantil:',e);
-      alert('No se ha podido eliminar la semana.\n\n'+(e&&e.message?e.message:String(e)));
-    }
+      await deleteCloud(n);var cloud=ordered(await fetchCloud());saveLocal(cloud);
+      if(window.__infantilWeek&&Number(window.__infantilWeek.weekNo)===Number(n))window.__infantilWeek=null;
+      redraw(cloud);summary('Semana '+n+' eliminada de Supabase. Las demás semanas se mantienen.');
+    }catch(e){console.error(e);alert('No se ha podido eliminar la semana de Supabase.\n\n'+(e&&e.message?e.message:String(e)));}
   }
-
   async function clearAll(){
-    if(!confirm('¿Vaciar todas las semanas guardadas?')) return;
-
-    try{
-      await deleteCloudAll();
-      localStorage.removeItem(HISTORY_KEY);
-      window.__infantilWeek=null;
-
-      var input=document.getElementById('seasonWeek');
-      if(input) input.value=1;
-
-      redraw([]);
-      summary('No hay semanas guardadas. La Semana 1 está preparada para generar.');
-    }catch(e){
-      console.error('Error vaciando semanas infantiles:',e);
-      alert('No se han podido eliminar las semanas.\n\n'+(e&&e.message?e.message:String(e)));
-    }
+    if(!confirm('¿Vaciar todas las semanas guardadas en Supabase?'))return;
+    try{await deleteCloudAll();saveLocal([]);window.__infantilWeek=null;var i=document.getElementById('seasonWeek');if(i)i.value=1;redraw([]);summary('No hay semanas guardadas. La Semana 1 está preparada para generar.');}
+    catch(e){console.error(e);alert('No se han podido eliminar las semanas de Supabase.\n\n'+(e&&e.message?e.message:String(e)));}
   }
-
   function bind(){
-    var saveBtn=document.getElementById('btnSaveInfantilWeek');
-    var loadBtn=document.getElementById('btnLoadInfantilWeek');
-    var clearBtn=document.getElementById('btnClearInfantilWeeks');
-
-    // Solo sustituimos las acciones de persistencia.
-    // El botón Generar semana NO se modifica.
-    if(saveBtn) saveBtn.onclick=function(e){
-      e.preventDefault(); e.stopPropagation(); saveCurrent();
-    };
-
-    if(loadBtn) loadBtn.onclick=function(e){
-      e.preventDefault(); e.stopPropagation(); loadSelected();
-    };
-
-    if(clearBtn) clearBtn.onclick=function(e){
-      e.preventDefault(); e.stopPropagation(); clearAll();
-    };
-
-    // El popup SÍ/NO de "Eliminar semana" termina llamando aquí.
-    window.fcConfirmDeleteWeek=function(weekNo){
-      deleteSingle(weekNo);
-    };
-
-    redraw(localWeeks());
+    var s=document.getElementById('btnSaveInfantilWeek'),l=document.getElementById('btnLoadInfantilWeek'),c=document.getElementById('btnClearInfantilWeeks');
+    if(s)s.onclick=function(e){e.preventDefault();e.stopPropagation();saveCurrent();};
+    if(l)l.onclick=function(e){e.preventDefault();e.stopPropagation();loadSelected();};
+    if(c)c.onclick=function(e){e.preventDefault();e.stopPropagation();clearAll();};
+    window.fcConfirmDeleteWeek=function(n){deleteSingle(n);};
     hydrate();
   }
-
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',bind);
-  }else{
-    bind();
-  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
 })();
 </script>
 
