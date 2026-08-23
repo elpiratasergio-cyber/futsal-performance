@@ -5787,5 +5787,261 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
 })();
 </script>
 
+
+<script id="fc-infantil-supabase-final-controller-v2">
+(function(){
+  'use strict';
+
+  var TABLE='infantil_weekly_plans';
+  var SHARED_KEY='fc-infantil-shared-v1';
+
+  function sb(){
+    if(!window.supabase || typeof window.supabase.createClient!=='function'){
+      throw new Error('El cliente de Supabase no está disponible.');
+    }
+    return window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_PUBLISHABLE_KEY,
+      {global:{headers:{'x-device-key':SHARED_KEY}}}
+    );
+  }
+
+  function selectedWeek(){
+    var el=document.getElementById('seasonWeek');
+    return Math.max(1,Number(el && el.value)||1);
+  }
+
+  function renderCloud(plans){
+    var list=(plans||[]).slice().sort(function(a,b){
+      return Number(a.weekNo||0)-Number(b.weekNo||0);
+    });
+    if(typeof window.render==='function') window.render(list);
+    return list;
+  }
+
+  async function readCloud(){
+    var c=sb();
+    var r=await c.from(TABLE)
+      .select('week_no,plan,created_at,updated_at')
+      .eq('device_key',SHARED_KEY)
+      .order('week_no',{ascending:true});
+    if(r.error) throw r.error;
+    return (r.data||[]).map(function(row){
+      return row.plan;
+    }).filter(Boolean);
+  }
+
+  async function persistWeek(week){
+    if(!week || week.weekNo==null){
+      throw new Error('No hay una semana generada para guardar.');
+    }
+
+    var c=sb();
+
+    // We use update first when the week already exists. This avoids the
+    // RLS/upsert ambiguity of an UPDATE after SELECT and preserves the row id.
+    var existing=await c.from(TABLE)
+      .select('id')
+      .eq('device_key',SHARED_KEY)
+      .eq('week_no',Number(week.weekNo))
+      .maybeSingle();
+
+    if(existing.error) throw existing.error;
+
+    var result;
+    if(existing.data && existing.data.id){
+      result=await c.from(TABLE)
+        .update({
+          plan:week,
+          updated_at:new Date().toISOString()
+        })
+        .eq('id',existing.data.id)
+        .eq('device_key',SHARED_KEY);
+    }else{
+      result=await c.from(TABLE)
+        .insert({
+          device_key:SHARED_KEY,
+          week_no:Number(week.weekNo),
+          plan:week
+        });
+    }
+
+    if(result.error) throw result.error;
+  }
+
+  async function save(){
+    var week=window.__infantilWeek;
+    var n=selectedWeek();
+
+    // Important: never use a local copy as the source of the week being saved
+    // if a freshly generated week exists in memory.
+    if(!week || Number(week.weekNo)!==n){
+      if(typeof window.generateInfantilWeek==='function'){
+        // Do not generate automatically. Just try the existing rendered plan.
+        var cloud=await readCloud();
+        week=cloud.find(function(w){return Number(w.weekNo)===n;});
+      }
+    }
+
+    if(!week){
+      alert('Genera primero la Semana '+n+' y después pulsa «Guardar semana».');
+      return;
+    }
+
+    var button=document.getElementById('btnSaveInfantilWeek');
+    if(button){button.disabled=true;button.textContent='⏳ Guardando…';}
+
+    try{
+      await persistWeek(week);
+
+      // Mandatory round-trip confirmation.
+      var cloud=renderCloud(await readCloud());
+      var saved=cloud.find(function(w){
+        return Number(w.weekNo)===Number(week.weekNo);
+      });
+
+      if(!saved){
+        throw new Error('La semana no aparece en Supabase después del guardado.');
+      }
+
+      window.__infantilWeek=saved;
+
+      var next=Math.min(40,Number(saved.weekNo)+1);
+      var input=document.getElementById('seasonWeek');
+      if(input) input.value=next;
+
+      var summary=document.getElementById('seasonSummary');
+      if(summary){
+        summary.innerHTML=
+          '<div class="season-note">Semana '+saved.weekNo+
+          ' guardada correctamente en Supabase. <b>Semana '+next+
+          ' preparada</b> para generar.</div>';
+      }
+    }catch(e){
+      console.error('TEMPORADA INFANTIL SUPABASE:',e);
+      alert('No se ha podido guardar la semana en Supabase.\n\n'+
+        (e && e.message ? e.message : String(e)));
+    }finally{
+      if(button){
+        button.disabled=false;
+        button.textContent='💾 Guardar semana';
+      }
+    }
+  }
+
+  async function load(){
+    var n=selectedWeek();
+    try{
+      var cloud=renderCloud(await readCloud());
+      var week=cloud.find(function(w){return Number(w.weekNo)===n;});
+
+      if(!week){
+        alert('No existe una Semana '+n+' guardada en Supabase.');
+        return;
+      }
+
+      window.__infantilWeek=week;
+
+      var summary=document.getElementById('seasonSummary');
+      if(summary){
+        summary.innerHTML=
+          '<div class="season-note">Semana '+n+
+          ' cargada correctamente desde Supabase.</div>';
+      }
+    }catch(e){
+      console.error('TEMPORADA INFANTIL SUPABASE:',e);
+      alert('No se han podido cargar las semanas desde Supabase.\n\n'+
+        (e && e.message ? e.message : String(e)));
+    }
+  }
+
+  async function clearAll(){
+    if(!confirm('¿Vaciar todas las semanas guardadas en Supabase?')) return;
+
+    try{
+      var c=sb();
+      var r=await c.from(TABLE)
+        .delete()
+        .eq('device_key',SHARED_KEY);
+
+      if(r.error) throw r.error;
+
+      window.__infantilWeek=null;
+      renderCloud([]);
+
+      var input=document.getElementById('seasonWeek');
+      if(input) input.value=1;
+
+      var summary=document.getElementById('seasonSummary');
+      if(summary){
+        summary.innerHTML=
+          '<div class="season-note">No hay semanas guardadas. '+
+          'La Semana 1 está preparada para generar.</div>';
+      }
+    }catch(e){
+      console.error('TEMPORADA INFANTIL SUPABASE:',e);
+      alert('No se han podido eliminar las semanas de Supabase.\n\n'+
+        (e && e.message ? e.message : String(e)));
+    }
+  }
+
+  function bind(){
+    var saveBtn=document.getElementById('btnSaveInfantilWeek');
+    var loadBtn=document.getElementById('btnLoadInfantilWeek');
+    var clearBtn=document.getElementById('btnClearInfantilWeeks');
+
+    if(saveBtn){
+      saveBtn.onclick=function(e){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        save();
+      };
+    }
+
+    if(loadBtn){
+      loadBtn.onclick=function(e){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        load();
+      };
+    }
+
+    if(clearBtn){
+      clearBtn.onclick=function(e){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        clearAll();
+      };
+    }
+
+    // On entering the tab, refresh from Supabase but never overwrite a freshly
+    // generated unsaved week held in memory.
+    var oldSwitch=window.switchMainTab;
+    if(typeof oldSwitch==='function' && !oldSwitch.__fcSupabaseWrapped){
+      var wrapped=function(tab){
+        oldSwitch.apply(this,arguments);
+        if(tab==='season'){
+          setTimeout(function(){
+            readCloud().then(function(cloud){
+              renderCloud(cloud);
+            }).catch(function(e){
+              console.warn('No se pudo refrescar Temporada Infantil:',e);
+            });
+          },180);
+        }
+      };
+      wrapped.__fcSupabaseWrapped=true;
+      window.switchMainTab=wrapped;
+    }
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',function(){setTimeout(bind,50);});
+  }else{
+    setTimeout(bind,50);
+  }
+})();
+</script>
+
 </body>
 </html>
