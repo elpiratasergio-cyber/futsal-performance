@@ -3575,7 +3575,7 @@ window.addEventListener('load',()=>{
     const el=document.getElementById('historyStatus');
     if(el){el.textContent=msg;el.style.color=error?'#b91c1c':'#64756e';}
   }
-  function localHistory(){ return []; }
+  function localHistory(){ return Array.isArray(window.__seniorHistoryCache) ? window.__seniorHistoryCache : []; }
   function saveLocal(_h){ /* No local persistence: Supabase only. */ }
   function historyClient(){
     if(!window.supabase?.createClient) return null;
@@ -3714,6 +3714,7 @@ window.addEventListener('load',()=>{
     try{
       const cloud=await fetchCloudHistory();
       if(Array.isArray(cloud)){
+        window.__seniorHistoryCache = cloud;
         renderHistory(cloud);
         setStatus(cloud.length?`${cloud.length} sesión(es) guardada(s) en Supabase.`:'Sin sesiones guardadas todavía.');
         return;
@@ -3866,8 +3867,9 @@ window.addEventListener('load',()=>{
 
   window.saveCurrentGeneratedSession=function(){savePlan(session||[]);};
 
-  window.loadHistorySession=function(id){
-    const h=localHistory().find(x=>x.id===id);
+  window.loadHistorySession=async function(id){
+    const cached=localHistory();
+    const h=cached.find(x=>String(x.id)===String(id));
     if(h){
       const plan=(h.training_session_exercises||[]).map(e=>{
         const x=EX.find(z=>Number(z.id)===Number(e.exercise_id));
