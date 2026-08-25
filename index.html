@@ -5083,10 +5083,14 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
   function keyExercise(e){return String(e&&e.id!=null?e.id:(e&&e.name)||'').trim().toLowerCase()}
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 
-  function load(){
-    try{let x=JSON.parse(localStorage.getItem(KEY)||'[]');return Array.isArray(x)?x:[]}catch(e){return[]}
-  }
-  function save(x){localStorage.setItem(KEY,JSON.stringify(x))}
+  /* Persistencia de Temporada Infantil: solo memoria durante la sesión.
+     La persistencia real la gestiona la capa Supabase final de este archivo.
+     No usamos localStorage para las semanas. */
+  let infantilHistoryCache=[];
+  function load(){ return Array.isArray(infantilHistoryCache) ? infantilHistoryCache.slice() : []; }
+  function save(x){ infantilHistoryCache=Array.isArray(x) ? x.slice() : []; }
+  window.__fcInfantilSetHistory=function(x){ infantilHistoryCache=Array.isArray(x)?x.slice():[]; };
+  window.__fcInfantilGetHistory=function(){ return Array.isArray(infantilHistoryCache)?infantilHistoryCache.slice():[]; };
 
   function weekDates(week){
     // Semana 1 empieza el martes 25/08/2026; cada semana suma 7 días.
@@ -5376,6 +5380,8 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
       </details>`).join('');
   }
 
+  window.__fcInfantilRender=render;
+
   function generate(){
     try{
       const inp=document.getElementById('seasonWeek');
@@ -5513,164 +5519,6 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
 })();
 </script>
 
-<script>
-/* ===== CONTROLES DE TEMPORADA — VERSIÓN ROBUSTA =====
-   Los botones se conectan por addEventListener al final del documento para
-   evitar conflictos entre los motores históricos de la página.
-*/
-(function(){
-  'use strict';
-  var KEY='futsalPerformanceInfantilWeeklyV3';
-  var START_WEEK=1;
-  var MAX_WEEK=40;
-
-  function readHistory(){
-    try{
-      var v=JSON.parse(localStorage.getItem(KEY)||'[]');
-      return Array.isArray(v)?v:[];
-    }catch(e){ return []; }
-  }
-  function writeHistory(v){
-    localStorage.setItem(KEY,JSON.stringify(v||[]));
-  }
-  function currentWeekNumber(){
-    var el=document.getElementById('seasonWeek');
-    return Math.max(1,Math.min(MAX_WEEK,Number(el&&el.value)||1));
-  }
-  function setWeek(n){
-    var el=document.getElementById('seasonWeek');
-    if(el)el.value=Math.max(1,Math.min(MAX_WEEK,Number(n)||1));
-  }
-  function redraw(){
-    var h=readHistory();
-    if(typeof window.render==='function')window.render(h);
-    else if(typeof window.renderWeeklyHistory==='function')window.renderWeeklyHistory();
-  }
-  function summary(text){
-    var el=document.getElementById('seasonSummary');
-    if(el)el.innerHTML='<div class="season-note">'+text+'</div>';
-  }
-
-  function saveCurrent(){
-    var week=window.__infantilWeek;
-    var selected=currentWeekNumber();
-    var history=readHistory();
-
-    if(!week || Number(week.weekNo)!==selected){
-      week=history.find(function(w){return Number(w.weekNo)===selected;});
-    }
-    if(!week){
-      alert('Genera primero la Semana '+selected+' y después pulsa «Guardar semana».');
-      return;
-    }
-
-    var merged=history.filter(function(w){return Number(w.weekNo)!==Number(week.weekNo);});
-    merged.push(week);
-    merged.sort(function(a,b){return Number(a.weekNo)-Number(b.weekNo);});
-    writeHistory(merged);
-    window.__infantilWeek=week;
-    redraw();
-
-    /* Dejamos preparada la semana siguiente para que el flujo sea:
-       guardar Semana 1 → Semana 2 → generar → guardar → Semana 3... */
-    var next=Math.min(MAX_WEEK,Number(week.weekNo)+1);
-    setWeek(next);
-    summary('Semana '+week.weekNo+' guardada correctamente. <b>Semana '+next+' preparada</b> para generar.');
-  }
-
-  function loadSelected(){
-    var history=readHistory();
-    if(!history.length){
-      alert('No hay semanas guardadas todavía.');
-      return;
-    }
-    var n=currentWeekNumber();
-    var week=history.find(function(w){return Number(w.weekNo)===n;});
-    if(!week){
-      alert('No existe una Semana '+n+' guardada. Genera y guarda esa semana primero.');
-      return;
-    }
-    window.__infantilWeek=week;
-    redraw();
-    summary('Semana '+n+' cargada correctamente.');
-  }
-
-  function printSelected(){
-    var history=readHistory();
-    var n=currentWeekNumber();
-    var week=history.find(function(w){return Number(w.weekNo)===n;}) || (window.__infantilWeek && Number(window.__infantilWeek.weekNo)===n ? window.__infantilWeek : null);
-    if(!week){
-      alert('Genera o guarda la Semana '+n+' antes de imprimir.');
-      return;
-    }
-    window.__infantilPrintWeek=week;
-    window.print();
-  }
-
-  function clearAll(){
-    if(!confirm('¿Vaciar todas las semanas guardadas?'))return;
-    writeHistory([]);
-    window.__infantilWeek=null;
-    setWeek(1);
-    redraw();
-    summary('No hay semanas guardadas. La Semana 1 está preparada para generar.');
-  }
-
-  function generate(){
-    if(typeof window.generateInfantilWeek==='function')window.generateInfantilWeek();
-    else alert('El generador de temporada no está disponible.');
-  }
-
-  function nextWeek(){
-    var n=Math.min(MAX_WEEK,currentWeekNumber()+1);
-    setWeek(n);
-    var h=readHistory();
-    var found=h.find(function(w){return Number(w.weekNo)===n;});
-    if(found){
-      window.__infantilWeek=found;
-      redraw();
-      summary('Semana '+n+' cargada.');
-    }else{
-      summary('Semana '+n+' preparada para generar. Pulsa <b>Generar semana</b>.');
-    }
-  }
-
-  function prevWeek(){
-    var n=Math.max(1,currentWeekNumber()-1);
-    setWeek(n);
-    var h=readHistory();
-    var found=h.find(function(w){return Number(w.weekNo)===n;});
-    if(found){window.__infantilWeek=found;redraw();summary('Semana '+n+' cargada.');}
-    else summary('Semana '+n+' todavía no está generada.');
-  }
-
-  function bind(){
-    var pairs=[
-      ['btnGenerateInfantilWeek',generate],
-      ['btnSaveInfantilWeek',saveCurrent],
-      ['btnLoadInfantilWeek',loadSelected],
-      ['btnPrintInfantilWeek',printSelected],
-      ['btnClearInfantilWeeks',clearAll]
-    ];
-    pairs.forEach(function(pair){
-      var el=document.getElementById(pair[0]);
-      if(!el)return;
-      el.onclick=function(e){e.preventDefault();e.stopPropagation();pair[1]();};
-    });
-
-    /* Reforzamos los botones de navegación semanal. */
-    document.querySelectorAll('[onclick*="changeInfantilWeek(-1)"]').forEach(function(el){
-      el.onclick=function(e){e.preventDefault();e.stopPropagation();prevWeek();};
-    });
-    document.querySelectorAll('[onclick*="changeInfantilWeek(1)"]').forEach(function(el){
-      el.onclick=function(e){e.preventDefault();e.stopPropagation();nextWeek();};
-    });
-  }
-
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);
-  else bind();
-})();
-</script>
 
 
 
@@ -5678,27 +5526,28 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
 
 
 
-<script id='fc-infantil-supabase-only'>(function(){const TABLE='infantil_weekly_plans',KEY='fc-infantil-shared-v1';function sb(){return window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{global:{headers:{'x-device-key':KEY}}});}const g=id=>document.getElementById(id);async function list(){const r=await sb().from(TABLE).select('week_no,plan').eq('device_key',KEY).order('week_no',{ascending:true});if(r.error)throw r.error;return(r.data||[]).map(x=>x.plan).filter(Boolean);}function paint(w){window.render&&window.render(w);}async function save(){const w=window.__infantilWeek;if(!w)return alert('Genera una semana primero.');const c=sb();const ex=await c.from(TABLE).select('id').eq('device_key',KEY).eq('week_no',Number(w.weekNo)).maybeSingle();let r;if(ex.error)throw ex.error;if(ex.data&&ex.data.id){r=await c.from(TABLE).update({plan:w,updated_at:new Date().toISOString()}).eq('id',ex.data.id);}else{r=await c.from(TABLE).insert({device_key:KEY,week_no:Number(w.weekNo),plan:w});}if(r.error)throw r.error;paint(await list());}async function load(){const n=Number(g('seasonWeek')?.value||1),w=(await list()).find(x=>Number(x.weekNo)===n);if(!w)return alert('No existe esa semana en Supabase.');window.__infantilWeek=w;paint(await list());}async function clearAll(){if(!confirm('¿Vaciar todas las semanas guardadas en Supabase?'))return;const r=await sb().from(TABLE).delete().eq('device_key',KEY);if(r.error)throw r.error;paint([]);}function bind(){g('btnSaveInfantilWeek')&&(g('btnSaveInfantilWeek').onclick=e=>{e.preventDefault();e.stopImmediatePropagation();save().catch(er=>alert(er.message));});g('btnLoadInfantilWeek')&&(g('btnLoadInfantilWeek').onclick=e=>{e.preventDefault();e.stopImmediatePropagation();load().catch(er=>alert(er.message));});g('btnClearInfantilWeeks')&&(g('btnClearInfantilWeeks').onclick=e=>{e.preventDefault();e.stopImmediatePropagation();clearAll().catch(er=>alert(er.message));});list().then(paint).catch(console.warn);}document.readyState==='loading'?document.addEventListener('DOMContentLoaded',()=>setTimeout(bind,50)):setTimeout(bind,50);})();</script>
-<script id="fc-infantil-supabase-authoritative-v2">
+
+
+
+
+\n<script id="fc-infantil-supabase-authoritative-final">
 (function(){
   'use strict';
   /*
-   * AUTORIDAD DE PERSISTENCIA — TEMPORADA INFANTIL
-   * Esta capa solo controla la pestaña Temporada Infantil.
-   * La pestaña Generador de 20 minutos no se modifica.
-   * Las semanas se guardan exclusivamente en Supabase.
+   * PERSISTENCIA AUTORITATIVA — TEMPORADA INFANTIL
+   * La primera pestaña (Generador de 20') no se toca.
+   * Las semanas de Infantil viven en Supabase; localStorage no participa.
    */
   var TABLE='infantil_weekly_plans';
   var DEVICE_KEY='fc-infantil-shared-v1';
   var MAX_WEEK=40;
 
   function client(){
-    return window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{
-      global:{headers:{'x-device-key':DEVICE_KEY}}
-    });
+    if(!window.supabase || !window.supabase.createClient) throw new Error('Supabase no está disponible.');
+    return window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{global:{headers:{'x-device-key':DEVICE_KEY}}});
   }
   function el(id){return document.getElementById(id);}
-  function weekNumber(){
+  function currentWeek(){
     var x=el('seasonWeek');
     return Math.max(1,Math.min(MAX_WEEK,Number(x&&x.value)||1));
   }
@@ -5706,13 +5555,12 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     var x=el('seasonWeek');
     if(x)x.value=Math.max(1,Math.min(MAX_WEEK,Number(n)||1));
   }
-  function message(html){
+  function redraw(history){
+    if(typeof window.__fcInfantilRender==='function') window.__fcInfantilRender(history||[]);
+  }
+  function note(html){
     var x=el('seasonSummary');
     if(x)x.innerHTML='<div class="season-note">'+html+'</div>';
-  }
-  function redraw(history){
-    if(typeof window.render==='function') window.render(history||[]);
-    else if(typeof window.renderWeeklyHistory==='function') window.renderWeeklyHistory();
   }
   async function fetchHistory(){
     var r=await client().from(TABLE)
@@ -5722,126 +5570,131 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
       .order('updated_at',{ascending:false});
     if(r.error)throw r.error;
     var seen={};
-    return (r.data||[]).filter(function(row){
+    var plans=[];
+    (r.data||[]).forEach(function(row){
       var n=Number(row.week_no);
-      if(seen[n])return false;
+      if(!row.plan || seen[n])return;
       seen[n]=true;
-      return !!row.plan;
-    }).map(function(row){return row.plan;});
+      plans.push(row.plan);
+    });
+    return plans.sort(function(a,b){return Number(a.weekNo)-Number(b.weekNo);});
+  }
+  function setCache(history){
+    if(typeof window.__fcInfantilSetHistory==='function') window.__fcInfantilSetHistory(history||[]);
+  }
+  async function initialise(){
+    var history=await fetchHistory();
+    setCache(history);
+    redraw(history);
+    var p=el('seasonPlayers'); if(p)p.value='16';
   }
   async function saveWeek(){
     var week=window.__infantilWeek;
-    var selected=weekNumber();
+    var selected=currentWeek();
     if(!week || Number(week.weekNo)!==selected){
-      var existing=(await fetchHistory()).find(function(w){return Number(w.weekNo)===selected;});
-      if(existing)week=existing;
+      var history=await fetchHistory();
+      week=history.find(function(w){return Number(w.weekNo)===selected;});
     }
     if(!week){
       alert('Genera primero la Semana '+selected+' y después pulsa «Guardar semana».');
       return;
     }
-
-    /* Siempre conservamos 16 internamente, pero nunca usamos ese valor para
-       seleccionar o descartar ejercicios. */
     week.options=Object.assign({},week.options||{}, {players:16});
-
     var c=client();
-    var q=await c.from(TABLE).select('id,created_at,updated_at')
-      .eq('device_key',DEVICE_KEY).eq('week_no',Number(week.weekNo))
-      .order('updated_at',{ascending:false}).limit(1);
-    if(q.error)throw q.error;
-
-    var r;
-    if(q.data && q.data.length){
-      r=await c.from(TABLE).update({plan:week,updated_at:new Date().toISOString()})
-        .eq('id',q.data[0].id).eq('device_key',DEVICE_KEY);
-    }else{
-      r=await c.from(TABLE).insert({device_key:DEVICE_KEY,week_no:Number(week.weekNo),plan:week});
-    }
+    /* Upsert atómico: una única fila por (device_key, week_no).
+       Evita carreras entre dos guardados y permite actualizar una semana ya existente. */
+    var r=await c.from(TABLE).upsert({
+      device_key:DEVICE_KEY,
+      week_no:Number(week.weekNo),
+      plan:week,
+      updated_at:new Date().toISOString()
+    },{onConflict:'device_key,week_no'});
     if(r.error)throw r.error;
-
-    window.__infantilWeek=week;
     var history=await fetchHistory();
+    setCache(history);
+    window.__infantilWeek=week;
     redraw(history);
-    message('Semana '+week.weekNo+' guardada correctamente en <b>Supabase</b>. No se ha utilizado almacenamiento local.');
+    note('Semana '+week.weekNo+' guardada correctamente en <b>Supabase</b>.');
   }
   async function loadWeek(){
-    var n=weekNumber();
     var history=await fetchHistory();
+    setCache(history);
+    var n=currentWeek();
     var week=history.find(function(w){return Number(w.weekNo)===n;});
     if(!week){
       alert('No existe la Semana '+n+' guardada en Supabase.');
+      redraw(history);
       return;
     }
     window.__infantilWeek=week;
     redraw(history);
-    message('Semana '+n+' cargada desde <b>Supabase</b>.');
+    note('Semana '+n+' cargada desde <b>Supabase</b>.');
   }
   async function clearWeeks(){
     if(!confirm('¿Vaciar todas las semanas guardadas en Supabase?'))return;
     var r=await client().from(TABLE).delete().eq('device_key',DEVICE_KEY);
     if(r.error)throw r.error;
-    window.__infantilWeek=null;
-    setWeek(1);
-    redraw([]);
-    message('No hay semanas guardadas. La Semana 1 está preparada para generar.');
+    setCache([]); window.__infantilWeek=null; setWeek(1); redraw([]);
+    note('No hay semanas guardadas. La Semana 1 está preparada para generar.');
   }
-  async function initialise(){
-    try{
-      /* Asegura que el campo oculto heredado nunca pueda influir en el generador. */
-      var p=el('seasonPlayers');
-      if(p)p.value='16';
-      var history=await fetchHistory();
-      redraw(history);
-    }catch(e){console.warn('Temporada Infantil / Supabase:',e);}
+  async function changeWeek(delta){
+    var n=Math.max(1,Math.min(MAX_WEEK,currentWeek()+Number(delta||0)));
+    setWeek(n);
+    var history=await fetchHistory();
+    setCache(history);
+    var week=history.find(function(w){return Number(w.weekNo)===n;});
+    if(week){window.__infantilWeek=week;redraw(history);note('Semana '+n+' cargada desde <b>Supabase</b>.');}
+    else{window.__infantilWeek=null;redraw(history);note('Semana '+n+' preparada para generar. Pulsa <b>Generar semana</b>.');}
   }
   function bind(){
+    var gen=el('btnGenerateInfantilWeek');
     var save=el('btnSaveInfantilWeek');
     var load=el('btnLoadInfantilWeek');
     var clear=el('btnClearInfantilWeeks');
-    if(save){
-      save.addEventListener('click',function(e){
-        e.preventDefault();e.stopImmediatePropagation();
-        saveWeek().catch(function(err){alert('No se ha podido guardar la semana.\\n\\n'+(err&&err.message?err.message:String(err)));});
-      },true);
-    }
-    if(load){
-      load.addEventListener('click',function(e){
-        e.preventDefault();e.stopImmediatePropagation();
-        loadWeek().catch(function(err){alert('No se ha podido cargar la semana.\\n\\n'+(err&&err.message?err.message:String(err)));});
-      },true);
-    }
-    if(clear){
-      clear.addEventListener('click',function(e){
-        e.preventDefault();e.stopImmediatePropagation();
-        clearWeeks().catch(function(err){alert('No se han podido borrar las semanas.\\n\\n'+(err&&err.message?err.message:String(err)));});
-      },true);
-    }
-    initialise();
+    if(gen)gen.onclick=function(e){
+      e.preventDefault();e.stopImmediatePropagation();
+      try{
+        /* El generador trabaja con la caché de Supabase ya cargada.\n           Generar NO guarda: solo prepara la semana. */
+        if(typeof window.generateInfantilWeek!=='function')throw new Error('El generador de temporada no está disponible.');
+        window.generateInfantilWeek();
+      }catch(err){alert('No se ha podido generar la semana.\\n\\n'+(err&&err.message?err.message:String(err)));}
+    };
+    if(save)save.onclick=function(e){
+      e.preventDefault();e.stopImmediatePropagation();
+      saveWeek().catch(function(err){alert('No se ha podido guardar la semana.\\n\\n'+(err&&err.message?err.message:String(err)));});
+    };
+    if(load)load.onclick=function(e){
+      e.preventDefault();e.stopImmediatePropagation();
+      loadWeek().catch(function(err){alert('No se ha podido cargar la semana.\\n\\n'+(err&&err.message?err.message:String(err)));});
+    };
+    if(clear)clear.onclick=function(e){
+      e.preventDefault();e.stopImmediatePropagation();
+      clearWeeks().catch(function(err){alert('No se han podido borrar las semanas.\\n\\n'+(err&&err.message?err.message:String(err)));});
+    };
+    document.querySelectorAll('[onclick*="changeInfantilWeek(-1)"]').forEach(function(x){
+      x.onclick=function(e){e.preventDefault();e.stopImmediatePropagation();changeWeek(-1).catch(function(err){alert(err.message||String(err));});};
+    });
+    document.querySelectorAll('[onclick*="changeInfantilWeek(1)"]').forEach(function(x){
+      x.onclick=function(e){e.preventDefault();e.stopImmediatePropagation();changeWeek(1).catch(function(err){alert(err.message||String(err));});};
+    });
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(bind,120);});
-  else setTimeout(bind,120);
-})();
-</script>
-<script id="fc-infantil-supabase-navigation-v2">
-(function(){
-  'use strict';
-  var TABLE='infantil_weekly_plans', DEVICE_KEY='fc-infantil-shared-v1';
-  function c(){return window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{global:{headers:{'x-device-key':DEVICE_KEY}}});}
-  function n(){var e=document.getElementById('seasonWeek');return Math.max(1,Math.min(40,Number(e&&e.value)||1));}
-  function set(nr){var e=document.getElementById('seasonWeek');if(e)e.value=Math.max(1,Math.min(40,Number(nr)||1));}
-  async function history(){var r=await c().from(TABLE).select('id,week_no,plan,updated_at').eq('device_key',DEVICE_KEY).order('week_no',{ascending:true}).order('updated_at',{ascending:false});if(r.error)throw r.error;var seen={};return(r.data||[]).filter(function(x){if(seen[x.week_no])return false;seen[x.week_no]=1;return !!x.plan;}).map(function(x){return x.plan;});}
-  function draw(h){if(typeof window.render==='function')window.render(h||[]);}
-  function note(t){var e=document.getElementById('seasonSummary');if(e)e.innerHTML='<div class="season-note">'+t+'</div>';}
-  window.changeInfantilWeek=async function(delta){
-    try{var target=Math.max(1,Math.min(40,n()+Number(delta||0)));set(target);var h=await history();var w=h.find(function(x){return Number(x.weekNo)===target;});if(w){window.__infantilWeek=w;draw(h);note('Semana '+target+' cargada desde <b>Supabase</b>.');}else{window.__infantilWeek=null;draw(h);note('Semana '+target+' preparada para generar. Pulsa <b>Generar semana</b>.');}}catch(e){alert('No se ha podido cambiar de semana.\\n\\n'+(e&&e.message?e.message:String(e)));}
-  };
-  window.loadInfantilWeekFromSupabase=async function(){try{var h=await history(),w=h.find(function(x){return Number(x.weekNo)===n();});if(!w){alert('No existe esa semana guardada en Supabase.');return;}window.__infantilWeek=w;draw(h);}catch(e){alert(e.message||String(e));}};
-  window.deleteInfantilWeek=async function(weekNo){
-    var target=Number(weekNo);if(!target)return;
-    if(!confirm('¿Eliminar únicamente la Semana '+target+' de Supabase?'))return;
-    try{var r=await c().from(TABLE).delete().eq('device_key',DEVICE_KEY).eq('week_no',target);if(r.error)throw r.error;var h=await history();if(window.__infantilWeek&&Number(window.__infantilWeek.weekNo)===target)window.__infantilWeek=null;draw(h);note('Semana '+target+' eliminada de <b>Supabase</b>.');}catch(e){alert('No se ha podido eliminar la semana.\\n\\n'+(e&&e.message?e.message:String(e)));}
-  };
+  /* Se expone únicamente el renderer de Infantil. No se usa window.render genérico. */
+  function hookRenderer(){
+    if(typeof window.__fcInfantilRender==='function')return true;
+    /* El renderer de la pestaña Infantil se registra por el bloque anterior. */
+    return false;
+  }
+  async function start(){
+    try{
+      bind();
+      if(!hookRenderer()){
+        /* Esperar a que el bloque renderer termine de registrarse. */
+        setTimeout(start,100); return;
+      }
+      await initialise();
+    }catch(e){console.warn('Temporada Infantil / Supabase:',e);}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
 })();
 </script>
 </body>
