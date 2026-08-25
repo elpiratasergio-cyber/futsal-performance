@@ -521,6 +521,21 @@ header .inner,.wrap{width:100%}
 <div class="top-tabs" role="tablist" aria-label="Secciones">
   <button class="top-tab active" id="tabGeneratorBtn" onclick="switchMainTab('generator')">⚡ Generador 20'</button>
   <button class="top-tab" id="tabSeasonBtn" onclick="switchMainTab('season')">📅 Temporada Infantil</button>
+<script>
+/* Main tab controller — kept independent from the 20' generator logic. */
+window.switchMainTab = window.switchMainTab || function(tab){
+  const generator = document.getElementById('generatorTab');
+  const season = document.getElementById('seasonTab');
+  const genBtn = document.getElementById('tabGeneratorBtn');
+  const seasonBtn = document.getElementById('tabSeasonBtn');
+  if(!generator || !season) return;
+  const isSeason = tab === 'season';
+  generator.style.display = isSeason ? 'none' : '';
+  season.style.display = isSeason ? '' : 'none';
+  if(genBtn) genBtn.classList.toggle('active', !isSeason);
+  if(seasonBtn) seasonBtn.classList.toggle('active', isSeason);
+};
+</script>
 </div>
 <div class="wrap" id="generatorTab">
 <section class="panel top-collapsible-panel">
