@@ -3275,7 +3275,7 @@ function renderGeneratorPicker(index){const list=document.getElementById('genPic
 function filterGeneratorPicker(){const idx=Number(document.querySelector('#genPickerOverlay h3')?.textContent.match(/(\d+)/)?.[1]||1)-1;renderGeneratorPicker(idx)}
 function selectGeneratorExercise(index,id){const fresh=EX.find(x=>Number(x.id)===Number(id));if(!fresh||!session[index])return;session[index]={...fresh,minutes:Number(session[index].minutes||10)};document.getElementById('genPickerOverlay')?.remove();renderSession();renderGeneratedSession();document.getElementById('session')?.classList.add('show')}
 function addIndividualExerciseToGenerated(){let idx=session.length;session.push({...({name:'Nuevo ejercicio'}),minutes:2});renderSession();openGeneratorExercisePicker(idx)}
-function renderGeneratedSession(){const out=document.getElementById('generated');if(!out||!session.length)return;out.style.display='block';out.innerHTML='<div class="generated-session-head"><h3>Sesión · '+session.reduce((a,x)=>a+Number(x.minutes||0),0).toFixed(1)+' minutos · '+session.length+' ejercicios</h3><div class="generated-session-actions"><button class="light" onclick="addIndividualExerciseToGenerated()">＋ Añadir ejercicio</button><button class="green" onclick="saveCurrentGeneratedSession?.()">💾 Guardar</button></div></div>'+session.map((x,i)=>`<div class="gitem"><b>${i+1}</b><div><b>${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.objective||'')}${x.custom?' · ⭐ Propio':''}</small></div><div class="gitem-actions"><button class="light" onclick="replaceGeneratedExercise(${i},'random')">🔄 Aleatorio</button><button class="light" onclick="openGeneratorExercisePicker(${i})">✏️ Cambiar</button><b class="gtime">${Number(x.minutes||0)}'</b></div></div>`).join('')}
+function renderGeneratedSession(){const out=document.getElementById('generated');if(!out||!session.length)return;out.style.display='block';out.innerHTML='<div class="generated-session-head"><h3>Sesión · '+session.reduce((a,x)=>a+Number(x.minutes||0),0).toFixed(1)+' minutos · '+session.length+' ejercicios</h3><div class="generated-session-actions"><button class="light" onclick="addIndividualExerciseToGenerated()">＋ Añadir ejercicio</button><button class="green" onclick="saveCurrentGeneratedSession?.()">'+(activeSessionId?'💾 Guardar cambios':'💾 Guardar')+'</button></div></div>'+session.map((x,i)=>`<div class="gitem"><b>${i+1}</b><div><b>${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.objective||'')}${x.custom?' · ⭐ Propio':''}</small></div><div class="gitem-actions"><button class="light" onclick="replaceGeneratedExercise(${i},'random')">🔄 Aleatorio</button><button class="light" onclick="openGeneratorExercisePicker(${i})">✏️ Cambiar</button><b class="gtime">${Number(x.minutes||0)}'</b></div></div>`).join('')}
 function toggleSession(){document.getElementById('session').classList.toggle('show')}function clearSession(){session=[];renderSession()}
 function goalMatch(x,g){if(g==='accel')return /Aceleración|Velocidad/.test(x.cat+x.type);if(g==='cod')return /Frenada|COD|Cambio de dirección|Agilidad/.test(x.cat+x.type);if(g==='power')return /Potencia|reactiv|Fuerza reactiva/.test(x.cat+x.type);if(g==='tech')return /Técnica|Velocidad/.test(x.cat+x.type);if(g==='specific')return /Integrado|Específico|Finalización|Rondo|Posesión/.test(x.cat+x.type);if(g==='react')return /Reacción|Agilidad/.test(x.cat+x.type);return true}
 function pick(a,u){let b=a.filter(x=>!u.has(x.id));return b.length?b[Math.floor(Math.random()*b.length)]:a[Math.floor(Math.random()*a.length)]}
@@ -3784,9 +3784,44 @@ window.addEventListener('load',()=>{
   window.prepareNextSessionMeta=computeNextSessionMeta;
   let lastSavedPlanKey='';
   let lastGeneratedPlanKey='';
+  let activeSessionId=null;
+  let activeSessionMeta=null;
 
   async function savePlan(plan){
     if(!plan?.length)return;
+
+    // Si estamos editando una sesión ya guardada, actualizar ESA sesión.
+    // Nunca crear una nueva sesión por cambiar uno de sus ejercicios.
+    if(activeSessionId){
+      try{
+        const c=historyClient();
+        if(!c) throw new Error('Supabase no está disponible.');
+        const date=activeSessionMeta?.session_date || normalizeSessionDate();
+        const name=activeSessionMeta?.name || document.getElementById('sessionName')?.value || 'Sesión';
+        const duration=plan.reduce((a,x)=>a+Number(x.minutes||0),0);
+        const objective=document.getElementById('goal')?.value || activeSessionMeta?.objective || 'auto';
+        const up=await c.from('training_sessions').update({
+          name, session_date:date, duration_minutes:duration, objective
+        }).eq('id',activeSessionId).eq('team','Senior').select('id,name,team,session_date,duration_minutes,objective,notes,created_at').single();
+        if(up.error) throw up.error;
+        const del=await c.from('training_session_exercises').delete().eq('session_id',activeSessionId);
+        if(del.error) throw del.error;
+        const rows=plan.map((x,i)=>({session_id:activeSessionId,exercise_id:Number(x.id),sort_order:i+1,minutes:Number(x.minutes||10)}));
+        const ins=await c.from('training_session_exercises').insert(rows);
+        if(ins.error) throw ins.error;
+        activeSessionMeta={...up.data,training_session_exercises:rows};
+        lastSavedPlanKey=plan.map(x=>Number(x.id)).join(',');
+        lastGeneratedPlanKey=lastSavedPlanKey;
+        setStatus(`Sesión actualizada en Supabase: ${name}`);
+        await refreshHistory();
+        renderGeneratedSession();
+        return activeSessionMeta;
+      }catch(err){
+        console.error('No se pudo actualizar la sesión en Supabase.',err);
+        setStatus(`No se ha podido actualizar la sesión: ${err.message||err}`,true);
+        return null;
+      }
+    }
 
     const meta=await computeNextSessionMeta();
     const date=meta.date;
@@ -3839,7 +3874,7 @@ window.addEventListener('load',()=>{
         return x?{...x,minutes:Number(e.minutes||10)}:null;
       }).filter(Boolean);
       if(plan.length){
-        session=plan; renderSession(); renderGeneratedSession();
+        session=plan; activeSessionId=h.id||null; activeSessionMeta=h; lastSavedPlanKey=plan.map(x=>Number(x.id)).join(','); lastGeneratedPlanKey=lastSavedPlanKey; renderSession(); renderGeneratedSession();
         document.getElementById('session').classList.add('show');
         const out=document.getElementById('generated');
         out.style.display='block';
@@ -3857,7 +3892,7 @@ window.addEventListener('load',()=>{
           return x?{...x,minutes:Number(e.minutes||10)}:null;
         }).filter(Boolean);
         if(!plan.length){setStatus('No se encontraron los ejercicios de esa sesión.',true);return;}
-        session=plan;renderSession();renderGeneratedSession();document.getElementById('session').classList.add('show');
+        session=plan; activeSessionId=id; activeSessionMeta=data; lastSavedPlanKey=plan.map(x=>Number(x.id)).join(','); lastGeneratedPlanKey=lastSavedPlanKey; renderSession();renderGeneratedSession();document.getElementById('session').classList.add('show');
         const out=document.getElementById('generated');out.style.display='block';
         out.innerHTML='<div class="generated-session-head"><h3>'+escHTML(data.name)+'</h3></div>'+
           plan.map((x,i)=>`<div class="gitem clickable" onclick="openExercise(${x.id})"><b>${i+1}</b><div><b>${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.objective)}</small></div><b>${x.minutes}'</b></div>`).join('');
@@ -4020,7 +4055,7 @@ window.addEventListener('load',()=>{
     const plan=[{...first,minutes:10},{...second,minutes:10}];
     lastGeneratedPlanKey=plan.map(x=>Number(x.id)).join(',');
     lastSavedPlanKey='';
-    session=plan;renderSession();
+    session=plan;activeSessionId=null;activeSessionMeta=null;renderSession();
     // Calculamos N + fecha justo al generar, consultando Supabase primero.
     let meta;
     try{
