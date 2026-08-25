@@ -278,20 +278,6 @@ header .inner,.wrap{width:100%}
 .session-day h4{margin:0;padding:12px 14px;background:#f8fbfa;display:flex;justify-content:space-between;gap:10px}
 .session-table{width:100%;border-collapse:collapse}.session-table th,.session-table td{padding:9px 10px;border-top:1px solid #edf2ef;vertical-align:top;text-align:left}.session-table th{font-size:12px;color:var(--muted);text-transform:uppercase}.session-table td:first-child{width:78px;font-weight:900;white-space:nowrap}.session-table td:nth-child(2){width:190px;font-weight:800}.session-objective{color:var(--muted);font-size:13px;margin-top:3px}
 .season-note{padding:12px 14px;border-radius:12px;background:#fff8e8;border:1px solid #f2dfae;color:#6f5310;font-size:13px}
-.season-generator-details{padding:0;overflow:hidden}
-.season-generator-details>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px 22px;background:#fff;font-size:20px;font-weight:900}
-.season-generator-details>summary::-webkit-details-marker{display:none}
-.season-generator-details[open]>summary{border-bottom:1px solid var(--line);background:#f8fbfa}
-.season-generator-chevron{font-size:14px;color:var(--muted);transition:transform .18s ease}
-.season-generator-details[open] .season-generator-chevron{transform:rotate(180deg)}
-.season-generator-body{padding:0 22px 22px}
-.season-month{border:1px solid #d8e7df;border-radius:16px;margin:14px 0;overflow:hidden;background:#fff}
-.season-month>summary{list-style:none;cursor:pointer;padding:15px 18px;background:#f4faf7;font-weight:900;display:flex;justify-content:space-between;gap:12px;align-items:center}
-.season-month>summary::-webkit-details-marker{display:none}
-.season-month-meta{color:var(--muted);font-size:13px;font-weight:700}
-.season-month-body{padding:0 14px 10px}
-.season-month .week-card{margin:10px 0}.week-empty-card>summary{background:#fafcfb}.week-empty-card .week-meta{color:#8b9893}
-@media(max-width:600px){.season-generator-summary{padding:15px!important;font-size:18px!important}.season-generator-body{padding:0 15px 15px}.season-month>summary{align-items:flex-start;flex-direction:column}.season-month-body{padding:0 9px 8px}}
 @media(max-width:850px){.season-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.season-grid .wide{grid-column:span 2}.season-summary{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:600px){.top-tabs{padding:0 10px}.top-tab{flex:1;padding:11px 8px;font-size:14px}.season-card{padding:15px}.season-grid{grid-template-columns:1fr}.season-grid .wide{grid-column:span 1}.season-summary{grid-template-columns:1fr 1fr}.session-table{font-size:13px}.session-table th,.session-table td{padding:7px}.session-table td:nth-child(2){width:auto}.week-card>summary{align-items:flex-start;flex-direction:column}}
 @media print{body{background:#fff}.top-tabs,.season-actions,#generatorTab{display:none!important}#seasonTab{display:block!important;max-width:none;margin:0;padding:0}.season-card{box-shadow:none;border:0}.week-card{break-inside:avoid}}
@@ -3007,9 +2993,8 @@ header .inner,.wrap{width:100%}
 <button onclick="clearSession()" style="margin-top:8px;background:#fee2e2;color:#991b1b">Vaciar</button></div></div>
 
 <section id="seasonTab" style="display:none">
-  <details class="season-card season-generator-details">
-    <summary class="season-generator-summary"><span>📅 Generador semanal · Infantil Fútbol Sala</span><span class="season-generator-chevron">▼</span></summary>
-    <div class="season-generator-body">
+  <div class="season-card">
+    <h2 style="margin-top:0">📅 Generador semanal · Infantil Fútbol Sala</h2>
     <p class="hint">Genera <b>una semana cada vez</b>, con dos sesiones y progresión durante la temporada. La estructura toma como base tu planificación del año pasado y combina ejercicios de la biblioteca evitando repeticiones cercanas.</p>
     <div class="season-grid">
       <div style="display:none"><label>Inicio de temporada</label><input id="seasonStart" type="date" value="2026-08-25"></div>
@@ -3033,8 +3018,7 @@ header .inner,.wrap{width:100%}
       <button type="button" id="btnClearInfantilWeeks" class="danger">Vaciar todas</button>
     </div>
     <div id="seasonSummary"></div>
-    </div>
-  </details>
+  </div>
 
   <div class="season-card">
     <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
@@ -4225,6 +4209,10 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
 </script>
 
 <script>
+/* Global escape helper shared by the Infantil Supabase renderer. */
+window.esc = window.esc || function(v){
+  return String(v==null?'':v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+};
 (function(){
   const WEEK_KEY='futsalPerformanceInfantilWeeklyV2';
 
@@ -4787,102 +4775,613 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
   }
 
   function render(history){
-    const el=document.getElementById('seasonWeeks'); if(!el)return;
+    var el=document.getElementById('seasonWeeks');
+    if(!el)return;
+    if(!history.length){el.innerHTML='<div class="empty">Todavía no hay semanas generadas.</div>';return;}
+    el.innerHTML=history.sort((a,b)=>a.weekNo-b.weekNo).map(function(w,index){
+      var open=index===history.length-1?' open':'';
+      return '<details class="week-card"'+open+'>'+
+        '<summary><span>SEMANA '+w.weekNo+' · '+escapeHtml(w.sessions[0].dateLabel)+' — '+escapeHtml(w.sessions[1].dateLabel)+'</span>'+
+        '<span class="week-meta">2 sesiones · '+escapeHtml(w.phase)+'</span></summary>'+
+        '<div class="week-body">'+
+        '<div class="season-note"><b>Enfoque:</b> '+escapeHtml(w.focus.join(' · '))+'</div>'+
+        w.sessions.map(function(s,si){
+          return '<div class="fc-rebuild-day">'+
+            '<div class="fc-rebuild-day-title"><span>'+s.day.toUpperCase()+'</span><span class="fc-rebuild-day-date">'+escapeHtml(s.dateLabel)+'</span></div>'+
+            s.rows.map(function(r,ri){
+              var canChange=ri>0 && ri<5 && r.exercise;
+              var changeBtn=canChange?'<div class="fc-exercise-actions"><button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace('+w.weekNo+','+si+','+ri+');event.stopPropagation()">🔄 Automático</button><button class="week-manual fc-rebuild-manual" onclick="fcManualExercise('+w.weekNo+','+si+','+ri+');event.stopPropagation()">✏️ Manual</button></div>':'';
+              return '<div class="fc-rebuild-exercise '+(r.block==='match'?'fc-rebuild-match':'')+'">'+
+                '<div class="fc-rebuild-ex-title"><strong>'+escapeHtml(r.name)+'</strong><span class="time">'+escapeHtml(r.time)+'</span></div>'+
+                changeBtn+
+                '<details class="fc-rebuild-details"><summary>▼ Ver objetivo y detalles</summary>'+
+                  '<div class="fc-rebuild-details-body"><b>Objetivo:</b> '+escapeHtml(r.objective)+'<br>'+escapeHtml(r.desc)+'</div>'+
+                '</details>'+
+                (r.manualImage?'<details class="fc-manual-image-details"><summary>▼ Ver imagen del ejercicio</summary><img class="fc-manual-image" src="'+escapeHtml(r.manualImage)+'" alt="Esquema de '+escapeHtml(r.name)+'"></details>':scheme(r))+
+              '</div>';
+            }).join('')+
+          '</div>';
+        }).join('')+
+        '<div class="week-card-actions"><button class="danger small" onclick="event.preventDefault();event.stopPropagation();fcRebuildDelete('+w.weekNo+')">🗑️ Eliminar semana</button></div>'+
+        '</div></details>';
+    }).join('');
+  }
 
-    const saved=(history||[]).slice().sort((a,b)=>Number(a.weekNo)-Number(b.weekNo));
-    const byWeek=new Map(saved.map(w=>[Number(w.weekNo),w]));
-    const monthNames=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-    const groups={};
-    const order=[];
+  function setSummary(w){
 
-    /*
-     * La temporada completa se muestra siempre: 40 semanas, aunque todavía
-     * no estén generadas. Las semanas se agrupan por el mes de su primer
-     * entrenamiento (martes), para que la navegación sea más limpia.
-     */
-    for(let weekNo=1; weekNo<=40; weekNo++){
-      const firstDate=addDaysSafe(parseDate(START),(weekNo-1)*7);
-      const key=`${firstDate.getFullYear()}-${String(firstDate.getMonth()+1).padStart(2,'0')}`;
-      if(!groups[key]){groups[key]=[];order.push(key);}
-      groups[key].push({weekNo,week:byWeek.get(weekNo)||null,firstDate});
-    }
+    var el=document.getElementById('seasonSummary');
+    if(!el)return;
+    el.innerHTML='<div class="season-summary"><div class="season-stat"><b>'+w.weekNo+'</b><span>semana</span></div><div class="season-stat"><b>2</b><span>sesiones</span></div><div class="season-stat"><b>90\'</b><span>por sesión</span></div></div>';
+  }
 
-    const selectedWeek=Math.max(1,Math.min(40,Number((document.getElementById('seasonWeek')||{}).value)||1));
-    const selectedDate=addDaysSafe(parseDate(START),(selectedWeek-1)*7);
-    const selectedMonthKey=`${selectedDate.getFullYear()}-${String(selectedDate.getMonth()+1).padStart(2,'0')}`;
 
-    const monthLabel=key=>{
-      const parts=key.split('-');
-      const y=Number(parts[0]),m=Number(parts[1])-1;
-      return `${monthNames[m]} ${y}`;
+  function replacementPool(block,currentId){
+    var pools={
+      minigame:['Activación','Juego','Competencia','Reacción'],
+      possession:['Posesión','Pase','Técnico','Rondo'],
+      technical:['Técnico-táctico','Técnico','Táctico','Pase'],
+      finishing:['Finalización','Tiro','Remate'],
+      match:['Juego','Partido','Transición','Táctico']
     };
+    var keys=pools[block]||[];
+    var current=norm(String(currentId||''));
+    var candidates=EX.filter(function(e){
+      if(e && e.custom===false){}
+      var text=norm([e.name,e.cat,e.type,e.objective,e.execution].join(' '));
+      if(!e || !e.name || norm(String(e.id||''))===current)return false;
+      return !keys.length || keys.some(function(k){return text.indexOf(norm(k))>=0;});
+    });
+    /* Si el filtro por familia es demasiado estricto, ampliamos a ejercicios
+       generales para que siempre exista una alternativa. */
+    if(!candidates.length){
+      candidates=EX.filter(function(e){return e && e.name && norm(String(e.id||''))!==current;});
+    }
+    return candidates;
+  }
 
-    const weekHtml=item=>{
-      const w=item.week;
-      if(!w){
-        return `
-          <details class="week-card week-empty-card" ${item.weekNo===selectedWeek?'open':''}>
-            <summary>
-              <span>SEMANA ${item.weekNo} · ${item.firstDate.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'})}</span>
-              <span class="week-meta">Pendiente de generar</span>
-            </summary>
-            <div class="week-body">
-              <div class="season-note">
-                <b>Semana ${item.weekNo} preparada.</b> Pulsa «Generar semana» para crear los entrenamientos de esta semana.
-              </div>
-            </div>
-          </details>`;
+  window.replaceInfantilExercise=function(weekNo,sessionIndex,rowIndex){
+    try{
+      var history=loadHistory();
+      var week=history.filter(function(w){return Number(w.weekNo)===Number(weekNo);})[0];
+      if(!week || !week.sessions || !week.sessions[sessionIndex])return;
+
+      var row=week.sessions[sessionIndex].rows[rowIndex];
+      if(!row || !row.exercise){
+        alert('Este bloque no admite cambio de ejercicio.');
+        return;
       }
 
-      const sessions=w.sessions||[];
-      return `
-        <details class="week-card" ${item.weekNo===selectedWeek?'open':''}>
-          <summary>
-            <span>SEMANA ${w.weekNo} · ${esc(sessions[0]?.dateLabel||'')} — ${esc(sessions[1]?.dateLabel||'')}</span>
-            <span class="week-meta">2 sesiones · ${esc(w.phase||'')}</span>
-          </summary>
-          <div class="week-body">
-            <div class="season-note"><b>Enfoque:</b> ${esc((w.focus||[]).join(' · '))}</div>
-            ${sessions.map((s,si)=>`
-              <div class="fc-rebuild-day">
-                <div class="fc-rebuild-day-title"><span>${esc((s.day||'Sesión').toUpperCase())}</span><span class="fc-rebuild-day-date">${esc(s.dateLabel||'')}</span></div>
-                ${(s.rows||[]).map((r,ri)=>`
-                  <div class="fc-rebuild-exercise ${r.block==='match'?'fc-rebuild-match':''}">
-                    <div class="fc-rebuild-ex-title">
-                      <strong>${esc(r.name)}</strong>
-                      <div class="fc-title-right">
-                        ${r.block!=='match'?`<div class="fc-exercise-actions">
-                          <button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace(${w.weekNo},${si},${ri});event.stopPropagation()">🔄 Automático</button>
-                          <button class="week-manual fc-rebuild-manual" onclick="fcManualExercise(${w.weekNo},${si},${ri});event.stopPropagation()">✏️ Manual</button>
-                        </div>`:''}
-                        <span class="time">${esc(r.time)}</span>
-                      </div>
-                    </div>
-                    <details class="fc-rebuild-details">
-                      <summary>▼ Ver objetivo y detalles</summary>
-                      <div class="fc-rebuild-details-body">${exerciseDetailHtml(r)}</div>
-                    </details>
-                    ${r.manualImage?'<details class="fc-manual-image-details"><summary>▼ Ver imagen del ejercicio</summary><img class="fc-manual-image" src="'+esc(r.manualImage)+'" alt="Esquema de '+esc(r.name)+'"></details>':scheme(r)}
-                  </div>
-                `).join('')}
-              </div>
-            `).join('')}
-            <div class="week-card-actions"><button class="danger small" onclick="event.preventDefault();event.stopPropagation();fcRebuildDelete(${w.weekNo})">🗑️ Eliminar semana</button></div>
-          </div>
-        </details>`;
-    };
+      var candidates=replacementPool(row.block,row.exercise.id);
+      if(!candidates.length){alert('No hay otro ejercicio disponible para este bloque.');return;}
 
-    el.innerHTML=order.map(key=>{
-      const weeks=groups[key];
-      const generated=weeks.filter(x=>x.week).length;
-      return `<details class="season-month" ${key===selectedMonthKey?'open':''}>
-        <summary>
-          <span>📅 ${monthLabel(key)}</span>
-          <span class="season-month-meta">${generated}/${weeks.length} semanas generadas</span>
-        </summary>
-        <div class="season-month-body">${weeks.map(weekHtml).join('')}</div>
-      </details>`;
-    }).join('');
+      /* Evitar ejercicios que ya aparecen en esta semana. */
+      var inWeek={};
+      week.sessions.forEach(function(s){
+        (s.rows||[]).forEach(function(r){
+          if(r.exercise && r!==row)inWeek[uniqueKey(r.exercise)]=true;
+        });
+      });
+      var fresh=candidates.filter(function(e){return !inWeek[uniqueKey(e)];});
+      if(fresh.length)candidates=fresh;
+
+      var pick=candidates[Math.floor(Math.random()*candidates.length)];
+      row.exercise=pick;
+      row.name=pick.name;
+      row.desc=pick.execution||pick.desc||'Adaptar la tarea al nivel del grupo.';
+      row.objective=pick.objective||'Aplicación del contenido';
+
+      /* Mantener el ejercicio nuevo dentro del historial y refrescar pantalla. */
+      var merged=history.filter(function(w){return Number(w.weekNo)!==Number(weekNo);});
+      merged.push(week);
+      merged.sort(function(a,b){return Number(a.weekNo)-Number(b.weekNo);});
+      saveHistory(merged);
+      window.__infantilWeek=week;
+      render(merged);
+      setSummary(week);
+    }catch(e){
+      alert('No se ha podido cambiar el ejercicio.\n\n'+(e && e.message ? e.message : String(e)));
+    }
+  };
+
+  window.deleteInfantilWeek=function(weekNo){
+    var history=loadHistory();
+    var week=history.filter(function(w){return Number(w.weekNo)===Number(weekNo);})[0];
+    if(!week)return;
+    if(!confirm('¿Eliminar únicamente la Semana '+weekNo+'?'))return;
+
+    var remaining=history.filter(function(w){return Number(w.weekNo)!==Number(weekNo);});
+    saveHistory(remaining);
+
+    if(window.__infantilWeek && Number(window.__infantilWeek.weekNo)===Number(weekNo)){
+      window.__infantilWeek=null;
+    }
+    render(remaining);
+
+    var current=document.getElementById('seasonWeek');
+    var summary=document.getElementById('seasonSummary');
+    if(current && Number(current.value)===Number(weekNo)){
+      var next=remaining.length?remaining[remaining.length-1].weekNo:weekNo;
+      current.value=next;
+    }
+    if(summary){
+      summary.innerHTML=remaining.length
+        ? '<div class="season-note">Semana '+weekNo+' eliminada. Las demás semanas se mantienen.</div>'
+        : '';
+    }
+  };
+
+  window.generateInfantilWeek=function(){
+    try{
+      var input=document.getElementById('seasonWeek');
+      var weekNo=Math.max(1,Number(input ? input.value : 1)||1);
+      if(weekNo>totalWeeks()) throw new Error('La temporada termina el 30/05/2027. La última semana de entrenamiento es la semana 40.');
+      var opts=getOptions();
+      var dates=weekDates(weekNo);
+      if(dates.length!==2) throw new Error('No hay dos sesiones completas para esa semana.');
+      var history=loadHistory();
+      var used={};
+      history.forEach(function(w){
+        safeArray(w.sessions).forEach(function(s){
+          safeArray(s.rows).forEach(function(r){if(r.exercise)used[uniqueKey(r.exercise)]=true;});
+        });
+      });
+      /* La semana que se está regenerando no se penaliza contra su propia versión anterior. */
+      history.filter(function(w){return w.weekNo===weekNo;}).forEach(function(w){
+        safeArray(w.sessions).forEach(function(s){safeArray(s.rows).forEach(function(r){if(r.exercise)delete used[uniqueKey(r.exercise)];});});
+      });
+      var recent=recentFamilyCounts(history.filter(function(w){return w.weekNo!==weekNo;}));
+      var pf=phaseFocus(weekNo,opts.goal);
+      var sessions=[
+        makeSession(dates[0],weekNo,0,pf.phase,pf.focus,opts,used,recent),
+        makeSession(dates[1],weekNo,1,pf.phase,pf.focus,opts,used,recent)
+      ];
+      var week={weekNo:weekNo,phase:pf.phase,focus:pf.focus,createdAt:new Date().toISOString(),options:opts,sessions:sessions};
+      var merged=history.filter(function(w){return w.weekNo!==weekNo;});
+      merged.push(week); merged.sort(function(a,b){return a.weekNo-b.weekNo;});
+      saveHistory(merged);
+      window.__infantilWeek=week;
+      render(merged);
+      setSummary(week);
+    }catch(e){ alert('No se ha podido generar la semana.\n\n'+(e && e.message ? e.message : String(e))); }
+  };
+
+  window.saveInfantilWeek=function(){
+    if(!window.__infantilWeek){alert('Genera primero una semana.');return;}
+    var hist=loadHistory().filter(function(w){return w.weekNo!==window.__infantilWeek.weekNo;});
+    hist.push(window.__infantilWeek); hist.sort(function(a,b){return a.weekNo-b.weekNo;});
+    saveHistory(hist); render(hist); alert('Semana '+window.__infantilWeek.weekNo+' guardada.');
+  };
+
+  window.loadInfantilWeek=function(){
+    var hist=loadHistory();
+    if(!hist.length){alert('No hay semanas guardadas.');return;}
+    var input=document.getElementById('seasonWeek');
+    var n=Math.max(1,Number(input ? input.value : hist[hist.length-1].weekNo)||hist[hist.length-1].weekNo);
+    var w=hist.filter(function(x){return x.weekNo===n;})[0] || hist[hist.length-1];
+    if(input)input.value=w.weekNo;
+    window.__infantilWeek=w; render(hist); setSummary(w);
+  };
+
+  window.changeInfantilWeek=function(delta){
+    var input=document.getElementById('seasonWeek');
+    var n=Math.max(1,(Number(input ? input.value : 1)||1)+Number(delta||0));
+    if(n>totalWeeks())n=totalWeeks();
+    if(input)input.value=n;
+    var hist=loadHistory();
+    var found=hist.filter(function(w){return w.weekNo===n;})[0];
+    if(found){window.__infantilWeek=found;render(hist);setSummary(found);}else{
+      var el=document.getElementById('seasonSummary');
+      if(el)el.innerHTML='<div class="season-note">Semana '+n+' preparada. Pulsa <b>Generar semana</b>.</div>';
+    }
+  };
+
+  window.clearInfantilWeeks=function(){
+    if(!confirm('¿Vaciar todas las semanas guardadas?'))return;
+    localStorage.removeItem(WEEK_KEY); window.__infantilWeek=null;
+    var el=document.getElementById('seasonWeeks'); if(el)el.innerHTML='<div class="empty">Planificación vacía.</div>';
+    var sum=document.getElementById('seasonSummary'); if(sum)sum.innerHTML='';
+  };
+
+  window.printInfantilWeek=function(){
+    var hist=loadHistory();
+    var input=document.getElementById('seasonWeek');
+    var n=Math.max(1,Number(input ? input.value : 1)||1);
+    var w=hist.filter(function(x){return x.weekNo===n;})[0];
+    if(!w){alert('Genera o carga una semana antes de imprimir.');return;}
+    window.__infantilPrintWeek=w; window.print();
+  };
+
+  /* Los días son fijos y nunca vuelven a aparecer como selector. */
+  function lockDayControls(){
+    var a=document.getElementById('seasonDay1'),b=document.getElementById('seasonDay2');
+    if(a)a.value='2'; if(b)b.value='5';
+    var fixed=document.querySelector('.fixed-days');
+    if(fixed)fixed.textContent='Martes y viernes';
+  }
+
+  var oldSwitch=window.switchMainTab;
+  window.switchMainTab=function(tab){
+    if(typeof oldSwitch==='function')oldSwitch(tab);
+    if(tab==='season'){lockDayControls();render(loadHistory());}
+  };
+
+  document.addEventListener('DOMContentLoaded',function(){
+    lockDayControls();
+    var input=document.getElementById('seasonWeek'); if(input && !input.value)input.value='1';
+    render(loadHistory());
+  });
+})();
+</script>
+
+<style id="fc-infantil-rebuild-style">
+.fc-rebuild-day{
+  margin:22px 0 18px;
+}
+.fc-rebuild-day-title{
+  display:flex;justify-content:space-between;align-items:center;
+  background:#173f31;color:#fff;border-radius:18px;
+  padding:18px 22px;min-height:82px;
+  font-size:36px;font-weight:900;letter-spacing:.4px;
+  box-shadow:0 5px 14px rgba(0,0,0,.12);
+}
+.fc-rebuild-day-date{font-size:17px;font-weight:700;opacity:.92}
+.fc-rebuild-exercise{
+  background:#fff;border:1px solid #e0e8e4;border-radius:14px;
+  padding:13px 14px;margin:10px 0;
+}
+.fc-rebuild-ex-title{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.fc-rebuild-ex-title strong{font-size:16px;flex:1;min-width:0}
+.fc-title-right{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-shrink:0}
+.fc-title-right .fc-exercise-actions{margin:0;display:flex;align-items:center;gap:8px}
+.fc-title-right .fc-exercise-actions button{margin:0!important}
+.fc-rebuild-details{margin-top:7px}
+.fc-rebuild-details summary{cursor:pointer;color:#173f31;font-weight:800;font-size:13px}
+.fc-rebuild-details-body{margin-top:7px;padding:10px;border-radius:10px;background:#f1f6f3;font-size:13px;line-height:1.45}
+.fc-rebuild-scheme{margin-top:8px}
+.fc-rebuild-scheme summary{cursor:pointer;color:#173f31;font-weight:800;font-size:13px}
+.fc-rebuild-scheme svg{width:100%;height:auto;display:block;margin-top:8px;border-radius:10px}
+.fc-rebuild-match{border:2px solid #173f31;background:#f5faf7}
+.fc-rebuild-match .fc-rebuild-ex-title strong{font-size:19px}
+.fc-delete-overlay{
+  position:fixed;inset:0;background:rgba(9,24,18,.58);display:flex;align-items:center;justify-content:center;
+  z-index:100000;padding:20px;backdrop-filter:blur(3px);
+}
+.fc-delete-modal{
+  width:min(430px,100%);background:#fff;border-radius:20px;padding:24px 24px 20px;
+  box-shadow:0 20px 60px rgba(0,0,0,.25);text-align:center;border:1px solid #dce8e1;
+}
+.fc-delete-icon{font-size:34px;margin-bottom:4px}
+.fc-delete-modal h3{margin:0 0 10px;color:#173f31;font-size:22px}
+.fc-delete-modal p{margin:7px 0;color:#34483f;font-size:15px;line-height:1.4}
+.fc-delete-note{font-size:13px!important;color:#718078!important}
+.fc-delete-actions{display:flex;justify-content:center;gap:12px;margin-top:20px}
+.fc-delete-actions button{
+  border:0;border-radius:11px;padding:11px 18px;font-weight:900;cursor:pointer;font-size:14px;
+}
+.fc-delete-no{background:#edf3f0;color:#173f31}
+.fc-delete-yes{background:#c62828;color:#fff}
+@media(max-width:650px){
+  .fc-rebuild-ex-title{align-items:flex-start}
+  .fc-title-right{flex-direction:column;align-items:flex-end;gap:6px}
+  .fc-title-right .fc-exercise-actions{flex-wrap:wrap;justify-content:flex-end}
+}
+.fc-rebuild-change{margin-top:8px;margin-bottom:7px;display:flex;width:max-content}.fc-rebuild-details{margin-top:0}.fc-rebuild-day-title{font-size:38px}.fc-rebuild-day-date{font-size:18px}@media(max-width:650px){.fc-rebuild-day-title{font-size:30px;padding:16px 18px}.fc-rebuild-day-date{font-size:15px}}
+</style>
+<script id="fc-infantil-rebuild">
+(function(){
+  'use strict';
+
+  const KEY='futsalPerformanceInfantilWeeklyV3';
+  const START=new Date('2026-08-25T12:00:00');
+  const END=new Date('2027-05-30T12:00:00');
+
+  function A(x){return Array.isArray(x)?x:[]}
+  function n(x){return String(x==null?'':x).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+  function pad(x){return String(x).padStart(2,'0')}
+  function iso(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+  function cloneDate(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate(),12)}
+  function addDays(d,x){let r=cloneDate(d);r.setDate(r.getDate()+x);return r}
+  function label(d){return d.toLocaleDateString('es-ES',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})}
+  function keyExercise(e){return String(e&&e.id!=null?e.id:(e&&e.name)||'').trim().toLowerCase()}
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+
+  /* Persistencia de Temporada Infantil: solo memoria durante la sesión.
+     La persistencia real la gestiona la capa Supabase final de este archivo.
+     No usamos localStorage para las semanas. */
+  let infantilHistoryCache=[];
+  function load(){ return Array.isArray(infantilHistoryCache) ? infantilHistoryCache.slice() : []; }
+  function save(x){ infantilHistoryCache=Array.isArray(x) ? x.slice() : []; }
+  window.__fcInfantilSetHistory=function(x){ infantilHistoryCache=Array.isArray(x)?x.slice():[]; };
+  window.__fcInfantilGetHistory=function(){ return Array.isArray(infantilHistoryCache)?infantilHistoryCache.slice():[]; };
+
+  function weekDates(week){
+    // Semana 1 empieza el martes 25/08/2026; cada semana suma 7 días.
+    const t=addDays(START,(Number(week)-1)*7);
+    const f=addDays(t,3);
+    if(t>END || f>END)return null;
+    return [t,f];
+  }
+
+  function totalWeeks(){
+    let count=0,d=cloneDate(START);
+    while(d<=END){count++;d=addDays(d,7)}
+    return count;
+  }
+
+  function options(){
+    const p=document.getElementById('seasonPlayers');
+    const g=document.getElementById('seasonGoal');
+    const c=document.getElementById('seasonCustom');
+    return {
+      players:'16',
+      goal:g?g.value:'development',
+      custom:c?(c.value==='yes'||c.checked):true,
+      duration:90,
+      day1:2,day2:5,start:iso(START),end:iso(END)
+    }
+  }
+
+  function phase(week,goal){
+    if(week<=4)return {name:'Adaptación y fundamentos',focus:['control','pase','conducción','ocupación básica de espacios']};
+    if(week<=8)return {name:'Construcción técnica',focus:['perfil corporal','primer toque','pase y movilidad','finalización']};
+    if(week<=14)return {name:'Comprensión táctica',focus:['apoyos','amplitud','superioridades','defensa']};
+    if(week<=22)return {name:'Transiciones y toma de decisiones',focus:['presión','repliegue','transición','ataque rápido']};
+    return {name:'Consolidación y competición',focus:['toma de decisiones','transiciones','finalización','transferencia al juego']};
+  }
+
+  const families=[
+    ['posesión','rondo','circulación','apoyo','comodín'],
+    ['finalización','tiro','remate','pared'],
+    ['1x1','duelo','regate','desborde'],
+    ['2x1','3x2','superioridad','inferioridad'],
+    ['transición','repliegue','contraataque','pérdida','presión'],
+    ['defensa','marcaje','cobertura'],
+    ['salida','presión','inicio','construcción'],
+    ['velocidad','reacción','aceleración','cambio de dirección']
+  ];
+
+  function family(e){
+    const t=n([e.name,e.objective,e.execution,e.type,e.cat,e.category].join(' '));
+    for(let i=0;i<families.length;i++)if(families[i].some(k=>t.includes(n(k))))return i;
+    return -1;
+  }
+
+  function allExercises(){
+    // EX y GAMES viven en este mismo <script> como const; no dependen de window.
+    // Usarlos directamente evita que el generador caiga en "Tarea contextual".
+    let pool=[];
+    try{pool=pool.concat(A(EX||[]))}catch(e){}
+    try{pool=pool.concat(A(GAMES||[]).map(x=>({...x,cat:x.cat||'Juego'})))}catch(e){}
+    const seen=new Set();
+    return pool.filter(e=>{
+      if(!e||!e.name)return false;
+      const k=keyExercise(e);
+      if(!k||seen.has(k))return false;
+      seen.add(k);return true;
+    });
+  }
+
+  const blockRules={
+    minigame:{keys:['juego','rondo','compet','reaccion','pilla','relev','mini'],cats:['juego','activacion']},
+    possession:{keys:['posesion','rondo','pase','circulacion','apoyo','comodin','amplitud'],cats:['posesion','pase','tecnico']},
+    technical:{keys:['tactico','1x1','2x1','3x2','superior','transicion','salida','control','conduccion','pase'],cats:['tactico','tecnico']},
+    finishing:{keys:['finaliz','tiro','remate','pared','porter'],cats:['finalizacion','tiro']}
+  };
+
+  function score(e,block,p,goal,used,recent,session){
+    const t=n([e.name,e.objective,e.execution,e.type,e.cat,e.category].join(' '));
+    const r=blockRules[block]||{keys:[],cats:[]};
+    let s=Math.random()*2;
+    if(used.has(keyExercise(e)))s-=100;
+    r.keys.forEach(k=>{if(t.includes(n(k)))s+=5});
+    r.cats.forEach(k=>{if(t.includes(n(k)))s+=3});
+    p.focus.forEach(k=>{if(t.includes(n(k)))s+=3});
+    const goalKeys={
+      development:['control','pase','decision','apoyo'],
+      technical:['control','pase','conduccion','perfil','pared'],
+      tactical:['superior','apoyo','amplitud','decision','presion'],
+      transition:['transicion','presion','repliegue','contra','recuper'],
+      finishing:['finaliz','tiro','remate','pared'],
+      competition:['decision','transicion','finaliz','partido']
+    }[goal]||[];
+    goalKeys.forEach(k=>{if(t.includes(n(k)))s+=2});
+    const f=family(e); if(f>=0)s-=Number(recent[f]||0)*3;
+    if(session===0 && /(posesion|rondo|pase|control|apoyo)/.test(t))s+=2;
+    if(session===1 && /(opos|duelo|1x1|2x1|3x2|transicion|presion|finaliz)/.test(t))s+=3;
+    return s;
+  }
+
+  function pick(block,p,goal,used,recent,session){
+    const pool=allExercises();
+    let cand=pool.map(e=>({e,s:score(e,block,p,goal,used,recent,session)})).sort((a,b)=>b.s-a.s);
+    const fresh=cand.filter(x=>!used.has(keyExercise(x.e)));
+    cand=fresh.length?fresh:cand;
+    if(!cand.length)return {name:'Tarea contextual',objective:'Aplicación del contenido',execution:'Adaptar espacio y reglas al nivel del grupo.',id:null};
+    // Randomize among the best few so the generator is varied but coherent.
+    const top=cand.slice(0,Math.min(6,cand.length));
+    const e=top[Math.floor(Math.random()*top.length)].e;
+    used.add(keyExercise(e));
+    return {name:e.name,objective:e.objective||'Aplicación del contenido',execution:e.execution||e.desc||'Realizar la tarea con las reglas indicadas.',id:e.id||null,source:e};
+  }
+
+  function recentCounts(history,excludeWeek){
+    const r={};
+    history.filter(w=>Number(w.weekNo)!==Number(excludeWeek)).slice(-6).forEach(w=>A(w.sessions).forEach(s=>A(s.rows).forEach(row=>{
+      if(row.exercise){let f=family(row.exercise);if(f>=0)r[f]=(r[f]||0)+1}
+    })));
+    return r;
+  }
+
+  // Visual scheme generated from the actual title + description, not just the block.
+  function scheme(row){
+    const t=n([row.name,row.objective,row.desc].join(' '));
+    let mode='generic';
+    if(/3x2|3 vs 2|superioridad|inferioridad/.test(t))mode='superiority';
+    else if(/2x1|2 vs 1/.test(t))mode='2v1';
+    else if(/1x1|duelo|regate/.test(t))mode='1v1';
+    else if(/finaliz|tiro|remate|pared|porter/.test(t))mode='finish';
+    else if(/posesion|rondo|comodin|circulacion|apoyo|amplitud/.test(t))mode='possession';
+    else if(/transicion|repliegue|contraataque|presion tras perdida/.test(t))mode='transition';
+    else if(/salida|presion/.test(t))mode='build';
+    else if(row.block==='match')mode='match';
+    else if(row.block==='minigame')mode='minigame';
+    const W=760,H=300;
+    let s=`<rect x="18" y="18" width="724" height="264" rx="10" fill="#eef8f2" stroke="#7da88d" stroke-width="3"/>
+      <line x1="380" y1="18" x2="380" y2="282" stroke="#9ab9a5" stroke-width="2"/>
+      <circle cx="380" cy="150" r="38" fill="none" stroke="#9ab9a5" stroke-width="2"/>
+      <rect x="18" y="88" width="55" height="124" fill="none" stroke="#7da88d" stroke-width="2"/>
+      <rect x="687" y="88" width="55" height="124" fill="none" stroke="#7da88d" stroke-width="2"/>`;
+    const B='#2563eb',R='#dc2626',G='#16a34a',O='#f59e0b';
+    const player=(x,y,c=B)=>`<circle cx="${x}" cy="${y}" r="11" fill="${c}" stroke="#fff" stroke-width="2"/>`;
+    const cone=(x,y)=>`<path d="M${x} ${y+14}L${x+8} ${y}L${x+16} ${y+14}Z" fill="${O}" stroke="#a86f00"/>`;
+    const ball=(x,y)=>`<circle cx="${x}" cy="${y}" r="7" fill="#fff" stroke="#111" stroke-width="2"/>`;
+    const arrow=(x1,y1,x2,y2)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${G}" stroke-width="5" marker-end="url(#arr)"/>`;
+    s+=`<defs><marker id="arr" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0L9,4.5L0,9Z" fill="${G}"/></marker></defs>`;
+
+    if(mode==='possession'){
+      [[110,80],[110,220],[650,80],[650,220]].forEach(p=>s+=player(p[0],p[1]));
+      s+=player(320,110,R)+player(440,190,R)+ball(380,150);
+      s+=arrow(125,80,300,110)+arrow(125,220,300,110)+arrow(635,80,460,190)+arrow(635,220,460,190);
+      s+=cone(220,60)+cone(220,235)+cone(540,60)+cone(540,235);
+    }else if(mode==='1v1'){
+      s+=player(150,150)+player(470,150,R)+ball(220,150)+arrow(230,150,440,150)+cone(300,80)+cone(300,220);
+    }else if(mode==='2v1'){
+      s+=player(130,115)+player(130,190)+player(500,150,R)+ball(205,150);
+      s+=arrow(215,145,470,150)+arrow(145,115,300,145)+cone(330,80)+cone(330,220);
+    }else if(mode==='superiority'){
+      s+=player(120,100)+player(120,200)+player(270,100)+player(270,200)+player(520,150,R)+player(650,150,R)+ball(300,150);
+      s+=arrow(290,100,450,140)+arrow(290,200,450,160)+arrow(145,100,250,100);
+    }else if(mode==='finish'){
+      s+=player(120,150)+player(300,90)+player(300,210)+player(520,150,R)+ball(180,150);
+      s+=arrow(190,150,285,95)+arrow(315,95,500,145)+cone(350,65)+cone(350,235);
+    }else if(mode==='transition'){
+      s+=player(120,90)+player(120,210)+player(260,150)+player(600,90,R)+player(600,210,R)+ball(280,150);
+      s+=arrow(290,150,520,100)+arrow(290,150,520,200);
+      s+=cone(360,70)+cone(360,230);
+    }else if(mode==='build'){
+      s+=player(100,150)+player(250,100)+player(250,200)+player(520,150,R)+ball(145,150);
+      s+=arrow(155,150,240,105)+arrow(260,105,500,145)+arrow(260,195,500,155);
+      s+=cone(330,70)+cone(330,230);
+    }else if(mode==='match'){
+      [[100,85],[100,150],[100,215],[245,110],[245,190]].forEach(p=>s+=player(p[0],p[1]));
+      [[660,85],[660,150],[660,215],[515,110],[515,190]].forEach(p=>s+=player(p[0],p[1],R));
+      s+=ball(380,150)+arrow(255,110,500,110)+arrow(255,190,500,190);
+    }else{
+      s+=player(130,150)+player(300,100)+player(300,200)+player(500,150,R)+ball(190,150);
+      s+=arrow(200,150,285,105)+arrow(315,105,480,145)+cone(360,70)+cone(360,230);
+    }
+    return `<details class="fc-rebuild-scheme"><summary>▼ Ver esquema visual</summary>
+      <svg viewBox="0 0 ${W} ${H}" aria-label="Esquema visual del ejercicio">${s}
+      <text x="380" y="270" text-anchor="middle" font-size="13" font-weight="800" fill="#173f31">${esc(row.name)}</text></svg>
+      <div class="scheme-key"><span>🔵 Jugador</span><span>🟢 Trayectoria</span><span>⚪ Balón</span><span>🔴 Oposición</span><span>🟠 Cono</span></div>
+    </details>`;
+  }
+
+  function makeSession(date,week,dayIndex,pf,opts,used,recent){
+    const a=pick('minigame',pf,pf.goal,used,recent,dayIndex);
+    const b=pick('possession',pf,pf.goal,used,recent,dayIndex);
+    const c=pick('technical',pf,pf.goal,used,recent,dayIndex);
+    const d=pick('finishing',pf,pf.goal,used,recent,dayIndex);
+    const rows=[
+      {block:'mobility',time:"10 min",name:'Movilidad articular',objective:'Preparar el cuerpo y mejorar la calidad de movimiento',desc:'Movilidad dinámica y activación específica antes del trabajo con balón.'},
+      {block:'minigame',time:"5 min",name:a.name,objective:a.objective,desc:a.execution,exercise:a},
+      {block:'possession',time:"15 min",name:b.name,objective:b.objective,desc:b.execution,exercise:b},
+      {block:'technical',time:"15 min",name:c.name,objective:c.objective,desc:c.execution,exercise:c},
+      {block:'finishing',time:"15 min",name:d.name,objective:d.objective,desc:d.execution,exercise:d},
+      {block:'match',time:"30 min",name:'PARTIDO',objective:'Transferir lo trabajado al juego real y favorecer la toma de decisiones',desc:'Partido final de la sesión. Aplicar el contenido trabajado durante la sesión.',exercise:null}
+    ];
+    return {date:iso(date),dateLabel:label(date),day:dayIndex===0?'Martes':'Viernes',phase:pf.name,focus:pf.focus,rows};
+  }
+
+
+  function exerciseDetailHtml(row){
+    const e=row&&row.exercise&&typeof row.exercise==='object'?row.exercise:{};
+    const name=row&&row.name?row.name:(e.name||'Ejercicio');
+    const objective=row&&row.objective?row.objective:(e.objective||'Aplicación del contenido trabajado.');
+    const execution=row&&row.desc?row.desc:(e.execution||e.desc||'Realizar la tarea respetando las reglas y adaptando el espacio al nivel del grupo.');
+    const material=e.material||row.material||'Balones, conos y petos según la tarea.';
+    const players=e.players||row.players||'Según asistencia.';
+    const dose=e.dose||row.dose||row.time||'Según la sesión.';
+    const type=e.type||row.type||'';
+    const text=(name+' '+type+' '+execution).toLowerCase();
+
+    let setup='Delimitar el espacio antes de comenzar, colocar el material y distribuir a los jugadores para que la tarea pueda empezar rápidamente. Explicar primero la dinámica y después introducir las reglas progresivamente.';
+    if(/rondo|posesi|conserv/.test(text)){
+      setup='Delimitar un espacio de posesión con '+material.toLowerCase()+'. Distribuir a los jugadores manteniendo líneas de pase y suficiente separación. Iniciar con la estructura básica y añadir las restricciones después de comprobar que todos entienden la tarea.';
+    }else if(/1x1|duelo|2x1|3x2|superioridad|inferioridad/.test(text)){
+      setup='Marcar una zona de trabajo con '+material.toLowerCase()+'. Organizar los turnos para que los jugadores entren y salgan con rapidez. Colocar atacantes y defensores según la situación planteada y preparar balones de continuidad.';
+    }else if(/finaliz|tiro|remate|porter/.test(text)){
+      setup='Preparar la zona de finalización con '+material.toLowerCase()+' y orientar las acciones hacia la portería. Dejar varios balones preparados para evitar tiempos muertos y organizar los turnos para que todos participen de forma continua.';
+    }else if(row&&row.block==='match'){
+      setup='Utilizar la pista completa, formar los equipos y comenzar el partido aplicando una condición relacionada con el objetivo de la sesión.';
+    }
+
+    let keys='Observar la calidad técnica, la toma de decisiones y la intensidad adecuada para la edad. Corregir con mensajes breves y concretos, evitando detener continuamente la tarea.';
+    if(/control|pase/.test(text)){
+      keys='Insistir en el perfil corporal, control orientado, pase al pie adecuado y movilidad inmediata después de pasar. Buscar que el jugador levante la cabeza antes de recibir.';
+    }
+    if(/posesi|rondo|conserv/.test(text)){
+      keys='Buscar apoyos constantes, líneas de pase, amplitud y velocidad de circulación. Premiar la movilidad después del pase y la capacidad de jugar lejos de la presión.';
+    }
+    if(/finaliz|tiro|remate/.test(text)){
+      keys='Priorizar la orientación corporal, el último pase, la elección de superficie de golpeo y la finalización rápida cuando aparezca ventaja.';
+    }
+    if(/1x1|duelo/.test(text)){
+      keys='Fomentar el cambio de ritmo, la protección del balón, el engaño previo y la decisión de superar o combinar según la posición del defensor.';
+    }
+
+    const progression='Comenzar con la versión más sencilla, asegurar comprensión y aumentar progresivamente la dificultad reduciendo espacio, limitando toques, aumentando oposición o añadiendo una condición de puntuación.';
+    const series='Mantener el tiempo asignado al bloque y organizar repeticiones cortas para que haya mucha participación. Alternar pausas breves de explicación con periodos de trabajo continuo.';
+
+    return '<div class="fc-detail-grid">'+
+      '<div class="fc-detail-box"><b>🎯 Objetivo</b><p>'+esc(objective)+'</p></div>'+
+      '<div class="fc-detail-box"><b>📋 Cómo se realiza</b><p>'+esc(execution)+'</p></div>'+
+      '<div class="fc-detail-box"><b>📐 Montaje</b><p>'+esc(setup)+'</p></div>'+
+      '<div class="fc-detail-box"><b>🧰 Material</b><p>'+esc(material)+'</p></div>'+
+      '<div class="fc-detail-box"><b>👥 Organización</b><p>'+esc(players)+'</p></div>'+
+      '<div class="fc-detail-box"><b>⏱️ Series y repeticiones</b><p>'+esc(dose)+' · '+esc(series)+'</p></div>'+
+      '<div class="fc-detail-box"><b>🔑 Claves del entrenador</b><p>'+esc(keys)+'</p></div>'+
+      '<div class="fc-detail-box"><b>📈 Progresión</b><p>'+esc(progression)+'</p></div>'+
+      '</div>';
+  }
+
+  function render(history){
+    const el=document.getElementById('seasonWeeks'); if(!el)return;
+    if(!history.length){el.innerHTML='<div class="empty">Todavía no hay semanas generadas.</div>';return}
+    el.innerHTML=history.sort((a,b)=>a.weekNo-b.weekNo).map((w,wi)=>`
+      <details class="week-card" ${wi===history.length-1?'open':''}>
+        <summary><span>SEMANA ${w.weekNo} · ${esc(w.sessions[0].dateLabel)} — ${esc(w.sessions[1].dateLabel)}</span><span class="week-meta">2 sesiones · ${esc(w.phase)}</span></summary>
+        <div class="week-body">
+          <div class="season-note"><b>Enfoque:</b> ${esc(w.focus.join(' · '))}</div>
+          ${w.sessions.map((s,si)=>`
+            <div class="fc-rebuild-day">
+              <div class="fc-rebuild-day-title"><span>${s.day.toUpperCase()}</span><span class="fc-rebuild-day-date">${esc(s.dateLabel)}</span></div>
+              ${s.rows.map((r,ri)=>`
+                <div class="fc-rebuild-exercise ${r.block==='match'?'fc-rebuild-match':''}">
+                  <div class="fc-rebuild-ex-title">
+                    <strong>${esc(r.name)}</strong>
+                    <div class="fc-title-right">
+                      ${r.block!=='match'?`<div class="fc-exercise-actions">
+                        <button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace(${w.weekNo},${si},${ri});event.stopPropagation()">🔄 Automático</button>
+                        <button class="week-manual fc-rebuild-manual" onclick="fcManualExercise(${w.weekNo},${si},${ri});event.stopPropagation()">✏️ Manual</button>
+                      </div>`:''}
+                      <span class="time">${esc(r.time)}</span>
+                    </div>
+                  </div>
+                  <details class="fc-rebuild-details">
+                    <summary>▼ Ver objetivo y detalles</summary>
+                    <div class="fc-rebuild-details-body">${exerciseDetailHtml(r)}</div>
+                  </details>
+                  ${r.manualImage?'<details class="fc-manual-image-details"><summary>▼ Ver imagen del ejercicio</summary><img class="fc-manual-image" src="'+esc(r.manualImage)+'" alt="Esquema de '+esc(r.name)+'"></details>':scheme(r)}
+                </div>
+              `).join('')}
+            </div>
+          `).join('')}
+          <div class="week-card-actions"><button class="danger small" onclick="event.preventDefault();event.stopPropagation();fcRebuildDelete(${w.weekNo})">🗑️ Eliminar semana</button></div>
+        </div>
+      </details>`).join('');
   }
 
   window.__fcInfantilRender=render;
@@ -5042,26 +5541,14 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
    * PERSISTENCIA AUTORITATIVA — TEMPORADA INFANTIL
    * La primera pestaña (Generador de 20') no se toca.
    * Las semanas de Infantil viven en Supabase; localStorage no participa.
-   *
-   * Esta capa sincroniza:
-   *  - SELECT inicial al cargar la página
-   *  - UPSERT de cada semana
-   *  - cambios automáticos/manuales de ejercicios
-   *  - configuración de la semana
-   *  - eliminación individual o total
    */
   var TABLE='infantil_weekly_plans';
   var DEVICE_KEY='fc-infantil-shared-v1';
   var MAX_WEEK=40;
-  var saveTimers={};
 
   function client(){
     if(!window.supabase || !window.supabase.createClient) throw new Error('Supabase no está disponible.');
-    return window.supabase.createClient(
-      SUPABASE_URL,
-      SUPABASE_PUBLISHABLE_KEY,
-      {global:{headers:{'x-device-key':DEVICE_KEY}}}
-    );
+    return window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{global:{headers:{'x-device-key':DEVICE_KEY}}});
   }
   function el(id){return document.getElementById(id);}
   function currentWeek(){
@@ -5079,117 +5566,35 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
     var x=el('seasonSummary');
     if(x)x.innerHTML='<div class="season-note">'+html+'</div>';
   }
-  function currentConfig(){
-    var goal=el('seasonGoal');
-    var custom=el('seasonCustom');
-    return {
-      players:16,
-      goal:goal?goal.value:'development',
-      custom:custom?(custom.value==='yes'||custom.checked):true,
-      duration:90,
-      day1:2,
-      day2:5,
-      start:'2026-08-25',
-      end:'2027-05-30'
-    };
-  }
-  /* ===== SELECT: fuente de verdad al recargar ===== */
   async function fetchHistory(){
     var r=await client().from(TABLE)
-      .select('id,week_no,plan,config,updated_at,created_at')
+      .select('id,week_no,plan,updated_at,created_at')
       .eq('device_key',DEVICE_KEY)
       .order('week_no',{ascending:true})
       .order('updated_at',{ascending:false});
     if(r.error)throw r.error;
-
     var seen={};
     var plans=[];
     (r.data||[]).forEach(function(row){
       var n=Number(row.week_no);
       if(!row.plan || seen[n])return;
       seen[n]=true;
-
-      var plan=row.plan;
-      if(typeof plan==='string'){
-        try{plan=JSON.parse(plan);}catch(e){}
-      }
-      if(!plan || typeof plan!=='object')return;
-
-      /* Compatibilidad con filas antiguas: la configuración puede estar
-         en la columna config o dentro del JSON de la semana. */
-      if(row.config && typeof row.config==='object'){
-        plan.options=Object.assign({},plan.options||{},row.config);
-      }
-      plans.push(plan);
+      plans.push(row.plan);
     });
     return plans.sort(function(a,b){return Number(a.weekNo)-Number(b.weekNo);});
   }
-
   function setCache(history){
-    if(typeof window.__fcInfantilSetHistory==='function'){
-      window.__fcInfantilSetHistory(history||[]);
-    }
+    if(typeof window.__fcInfantilSetHistory==='function') window.__fcInfantilSetHistory(history||[]);
   }
-
-  function hydrateControls(week){
-    var cfg=week&&week.options ? week.options : currentConfig();
-    var goal=el('seasonGoal');
-    var custom=el('seasonCustom');
-    if(goal && cfg.goal)goal.value=cfg.goal;
-    if(custom && typeof cfg.custom!=='undefined')custom.value=cfg.custom?'yes':'no';
-    var p=el('seasonPlayers'); if(p)p.value='16';
-  }
-
   async function initialise(){
     var history=await fetchHistory();
     setCache(history);
-    var n=currentWeek();
-    var selected=history.find(function(w){return Number(w.weekNo)===n;});
-    if(selected){
-      window.__infantilWeek=selected;
-      hydrateControls(selected);
-    }else{
-      window.__infantilWeek=null;
-    }
     redraw(history);
-    if(selected)note('Semana '+n+' cargada automáticamente desde <b>Supabase</b>.');
+    var p=el('seasonPlayers'); if(p)p.value='16';
   }
-
-  /*
-   * UPSERT centralizado. Todas las modificaciones de Infantil pasan por aquí.
-   * No afecta a ninguna función del Generador de 20'.
-   */
-  async function upsertWeek(week, silent){
-    if(!week)throw new Error('No hay una semana de Infantil seleccionada.');
-    week.options=Object.assign({},week.options||{},currentConfig());
-    var now=new Date().toISOString();
-
-    var payload={
-      device_key:DEVICE_KEY,
-      week_no:Number(week.weekNo),
-      plan:week,
-      config:week.options||{},
-      updated_at:now
-    };
-
-    var r=await client().from(TABLE).upsert(payload,{onConflict:'device_key,week_no'});
-    if(r.error)throw r.error;
-
-    var history=await fetchHistory();
-    setCache(history);
-    var fresh=history.find(function(w){return Number(w.weekNo)===Number(week.weekNo);});
-    window.__infantilWeek=fresh||week;
-    if(!silent){
-      redraw(history);
-      note('Semana '+week.weekNo+' guardada correctamente en <b>Supabase</b>.');
-    }
-    return fresh||week;
-  }
-
   async function saveWeek(){
     var week=window.__infantilWeek;
     var selected=currentWeek();
-
     if(!week || Number(week.weekNo)!==selected){
       var history=await fetchHistory();
       week=history.find(function(w){return Number(w.weekNo)===selected;});
@@ -5198,259 +5603,102 @@ window.FCUniqueKey=function(x){return String((x&&x.name)||'').toLowerCase().repl
       alert('Genera primero la Semana '+selected+' y después pulsa «Guardar semana».');
       return;
     }
-
-    await upsertWeek(week,false);
+    week.options=Object.assign({},week.options||{}, {players:16});
+    var c=client();
+    /* Upsert atómico: una única fila por (device_key, week_no).
+       Evita carreras entre dos guardados y permite actualizar una semana ya existente. */
+    var r=await c.from(TABLE).upsert({
+      device_key:DEVICE_KEY,
+      week_no:Number(week.weekNo),
+      plan:week,
+      updated_at:new Date().toISOString()
+    },{onConflict:'device_key,week_no'});
+    if(r.error)throw r.error;
+    var history=await fetchHistory();
+    setCache(history);
+    window.__infantilWeek=week;
+    redraw(history);
+    note('Semana '+week.weekNo+' guardada correctamente en <b>Supabase</b>.');
   }
-
-  async function persistCurrentWeek(reason){
-    var week=window.__infantilWeek;
-    if(!week)return;
-    try{
-      await upsertWeek(week,true);
-      if(reason){
-        var status=el('seasonSummary');
-        if(status){
-          status.innerHTML='<div class="season-note">✓ '+reason+' · sincronizado con <b>Supabase</b>.</div>';
-        }
-      }
-    }catch(err){
-      console.warn('No se pudo sincronizar la Semana Infantil con Supabase:',err);
-      var status=el('seasonSummary');
-      if(status){
-        status.innerHTML='<div class="season-note" style="background:#fff1f2;border-color:#fecdd3;color:#991b1b">⚠️ Cambio realizado, pero no se pudo sincronizar con Supabase: '+String(err&&err.message||err)+'</div>';
-      }
-    }
-  }
-  window.__fcInfantilPersistCurrentWeek=persistCurrentWeek;
-
-  function schedulePersist(reason){
-    var n=currentWeek();
-    clearTimeout(saveTimers[n]);
-    saveTimers[n]=setTimeout(function(){
-      persistCurrentWeek(reason);
-    },450);
-  }
-
   async function loadWeek(){
     var history=await fetchHistory();
     setCache(history);
     var n=currentWeek();
     var week=history.find(function(w){return Number(w.weekNo)===n;});
     if(!week){
-      window.__infantilWeek=null;
       alert('No existe la Semana '+n+' guardada en Supabase.');
       redraw(history);
       return;
     }
     window.__infantilWeek=week;
-    hydrateControls(week);
     redraw(history);
     note('Semana '+n+' cargada desde <b>Supabase</b>.');
   }
-
-  async function deleteWeekCloud(weekNo){
-    var r=await client().from(TABLE)
-      .delete()
-      .eq('device_key',DEVICE_KEY)
-      .eq('week_no',Number(weekNo));
-    if(r.error)throw r.error;
-
-    var history=await fetchHistory();
-    setCache(history);
-    var selected=history.find(function(w){return Number(w.weekNo)===currentWeek();});
-    window.__infantilWeek=selected||null;
-    if(selected)hydrateControls(selected);
-    redraw(history);
-    note('Semana '+weekNo+' eliminada de <b>Supabase</b>.');
-  }
-
   async function clearWeeks(){
     if(!confirm('¿Vaciar todas las semanas guardadas en Supabase?'))return;
     var r=await client().from(TABLE).delete().eq('device_key',DEVICE_KEY);
     if(r.error)throw r.error;
-
-    setCache([]);
-    window.__infantilWeek=null;
-    setWeek(1);
-    redraw([]);
+    setCache([]); window.__infantilWeek=null; setWeek(1); redraw([]);
     note('No hay semanas guardadas. La Semana 1 está preparada para generar.');
   }
-
   async function changeWeek(delta){
     var n=Math.max(1,Math.min(MAX_WEEK,currentWeek()+Number(delta||0)));
     setWeek(n);
-
     var history=await fetchHistory();
     setCache(history);
     var week=history.find(function(w){return Number(w.weekNo)===n;});
-
-    if(week){
-      window.__infantilWeek=week;
-      hydrateControls(week);
-      redraw(history);
-      note('Semana '+n+' cargada desde <b>Supabase</b>.');
-    }else{
-      window.__infantilWeek=null;
-      redraw(history);
-      note('Semana '+n+' preparada para generar. Pulsa <b>Generar semana</b>.');
-    }
+    if(week){window.__infantilWeek=week;redraw(history);note('Semana '+n+' cargada desde <b>Supabase</b>.');}
+    else{window.__infantilWeek=null;redraw(history);note('Semana '+n+' preparada para generar. Pulsa <b>Generar semana</b>.');}
   }
-
-  function bindExercisePersistence(){
-    /* Cambio automático de ejercicio */
-    if(typeof window.fcRebuildReplace==='function' && !window.fcRebuildReplace.__supabaseWrapped){
-      var oldAuto=window.fcRebuildReplace;
-      var wrappedAuto=function(week,si,ri){
-        oldAuto(week,si,ri);
-        setTimeout(function(){persistCurrentWeek('Ejercicio cambiado automáticamente');},0);
-      };
-      wrappedAuto.__supabaseWrapped=true;
-      window.fcRebuildReplace=wrappedAuto;
-    }
-
-    /* Cambio manual de ejercicio.
-       La función original puede usar FileReader, por eso observamos el cierre
-       del modal y sincronizamos cuando desaparece. */
-    if(typeof window.fcSaveManualExercise==='function' && !window.fcSaveManualExercise.__supabaseWrapped){
-      var oldManual=window.fcSaveManualExercise;
-      var wrappedManual=function(week,si,ri){
-        oldManual(week,si,ri);
-        var started=Date.now();
-        (function waitForManualSave(){
-          var modal=el('fcManualModal');
-          if(!modal || Date.now()-started>8000){
-            persistCurrentWeek('Ejercicio manual actualizado');
-            return;
-          }
-          setTimeout(waitForManualSave,120);
-        })();
-      };
-      wrappedManual.__supabaseWrapped=true;
-      window.fcSaveManualExercise=wrappedManual;
-    }
-
-    /* Eliminación individual */
-    if(typeof window.fcConfirmDeleteWeek==='function' && !window.fcConfirmDeleteWeek.__supabaseWrapped){
-      var oldDelete=window.fcConfirmDeleteWeek;
-      var wrappedDelete=function(week){
-        oldDelete(week);
-        deleteWeekCloud(week).catch(function(err){
-          alert('La semana se eliminó de la vista, pero no se pudo eliminar de Supabase.\n\n'+(err&&err.message?err.message:String(err)));
-        });
-      };
-      wrappedDelete.__supabaseWrapped=true;
-      window.fcConfirmDeleteWeek=wrappedDelete;
-    }
-  }
-
   function bind(){
     var gen=el('btnGenerateInfantilWeek');
     var save=el('btnSaveInfantilWeek');
     var load=el('btnLoadInfantilWeek');
     var clear=el('btnClearInfantilWeeks');
-
     if(gen)gen.onclick=function(e){
       e.preventDefault();e.stopImmediatePropagation();
       try{
+        /* El generador trabaja con la caché de Supabase ya cargada.\n           Generar NO guarda: solo prepara la semana. */
         if(typeof window.generateInfantilWeek!=='function')throw new Error('El generador de temporada no está disponible.');
         window.generateInfantilWeek();
-
-        /* La semana generada queda preparada en memoria y se sincroniza
-           inmediatamente; así un F5 no la hace desaparecer. */
-        setTimeout(function(){
-          var week=window.__infantilWeek;
-          if(week){
-            week.options=Object.assign({},week.options||{},currentConfig());
-            upsertWeek(week,false).catch(function(err){
-              console.warn('No se pudo guardar automáticamente la semana generada.',err);
-            });
-          }
-        },50);
-      }catch(err){
-        alert('No se ha podido generar la semana.\n\n'+(err&&err.message?err.message:String(err)));
-      }
+      }catch(err){alert('No se ha podido generar la semana.\\n\\n'+(err&&err.message?err.message:String(err)));}
     };
-
     if(save)save.onclick=function(e){
       e.preventDefault();e.stopImmediatePropagation();
-      saveWeek().catch(function(err){
-        alert('No se ha podido guardar la semana.\n\n'+(err&&err.message?err.message:String(err)));
-      });
+      saveWeek().catch(function(err){alert('No se ha podido guardar la semana.\\n\\n'+(err&&err.message?err.message:String(err)));});
     };
-
     if(load)load.onclick=function(e){
       e.preventDefault();e.stopImmediatePropagation();
-      loadWeek().catch(function(err){
-        alert('No se ha podido cargar la semana.\n\n'+(err&&err.message?err.message:String(err)));
-      });
+      loadWeek().catch(function(err){alert('No se ha podido cargar la semana.\\n\\n'+(err&&err.message?err.message:String(err)));});
     };
-
     if(clear)clear.onclick=function(e){
       e.preventDefault();e.stopImmediatePropagation();
-      clearWeeks().catch(function(err){
-        alert('No se han podido borrar las semanas.\n\n'+(err&&err.message?err.message:String(err)));
-      });
+      clearWeeks().catch(function(err){alert('No se han podido borrar las semanas.\\n\\n'+(err&&err.message?err.message:String(err)));});
     };
-
     document.querySelectorAll('[onclick*="changeInfantilWeek(-1)"]').forEach(function(x){
-      x.onclick=function(e){
-        e.preventDefault();e.stopImmediatePropagation();
-        changeWeek(-1).catch(function(err){alert(err.message||String(err));});
-      };
+      x.onclick=function(e){e.preventDefault();e.stopImmediatePropagation();changeWeek(-1).catch(function(err){alert(err.message||String(err));});};
     });
     document.querySelectorAll('[onclick*="changeInfantilWeek(1)"]').forEach(function(x){
-      x.onclick=function(e){
-        e.preventDefault();e.stopImmediatePropagation();
-        changeWeek(1).catch(function(err){alert(err.message||String(err));});
-      };
+      x.onclick=function(e){e.preventDefault();e.stopImmediatePropagation();changeWeek(1).catch(function(err){alert(err.message||String(err));});};
     });
-
-    /* Configuración semanal: se refleja en el plan guardado de la semana actual. */
-    ['seasonGoal','seasonCustom'].forEach(function(id){
-      var x=el(id);
-      if(x){
-        x.addEventListener('change',function(){
-          var week=window.__infantilWeek;
-          if(!week)return;
-          week.options=Object.assign({},week.options||{},currentConfig());
-          schedulePersist('Configuración semanal actualizada');
-        });
-      }
-    });
-
-    /* Semana seleccionada: si ya existe, se recupera desde Supabase. */
-    var weekInput=el('seasonWeek');
-    if(weekInput){
-      weekInput.addEventListener('change',function(){
-        changeWeek(0).catch(function(err){console.warn('No se pudo cargar la semana seleccionada.',err);});
-      });
-    }
-
-    bindExercisePersistence();
   }
-
-  /*
-   * Reintenta el hook porque el renderer Infantil se registra en el bloque
-   * inmediatamente anterior. No afecta al Generador de 20'.
-   */
+  /* Se expone únicamente el renderer de Infantil. No se usa window.render genérico. */
+  function hookRenderer(){
+    if(typeof window.__fcInfantilRender==='function')return true;
+    /* El renderer de la pestaña Infantil se registra por el bloque anterior. */
+    return false;
+  }
   async function start(){
     try{
-      if(typeof window.__fcInfantilRender!=='function'){
-        setTimeout(start,100);
-        return;
-      }
       bind();
+      if(!hookRenderer()){
+        /* Esperar a que el bloque renderer termine de registrarse. */
+        setTimeout(start,100); return;
+      }
       await initialise();
-      bindExercisePersistence();
-    }catch(e){
-      console.warn('Temporada Infantil / Supabase:',e);
-      var s=el('seasonSummary');
-      if(s)s.innerHTML='<div class="season-note" style="background:#fff1f2;border-color:#fecdd3;color:#991b1b">⚠️ No se pudo sincronizar la temporada infantil con Supabase: '+String(e&&e.message||e)+'</div>';
-    }
+    }catch(e){console.warn('Temporada Infantil / Supabase:',e);}
   }
-
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);
-  else start();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
 })();
 </script>
 </body>
