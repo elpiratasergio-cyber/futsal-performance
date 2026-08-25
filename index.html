@@ -580,7 +580,6 @@ window.switchMainTab = window.switchMainTab || function(tab){
       <p class="hint">Genera exactamente 2 ejercicios de 10'. El primero será un juego inicial, rondo o tarea colectiva; el segundo será el estímulo principal. El calentamiento activo previo queda fuera del generador.</p>
       <div class="generator">
       <div><label>Objetivo</label><select id="goal"><option value="auto">Automático / equilibrado</option><option value="accel">Aceleración</option><option value="cod">Frenada + cambios de dirección</option><option value="power">Potencia / reactividad</option><option value="tech">Técnica + velocidad</option><option value="specific">Específico con balón</option><option value="react">Reacción + decisión</option><option value="mixed">Mixto</option></select></div>
-      <div><label>Jugadores</label><select id="players"><option>10</option><option>12</option><option>14</option><option>16</option><option>18</option></select></div>
       <div><label>Material</label><select id="equipment"><option value="normal">Normal</option><option value="low">Poco material</option><option value="ball">Prioridad balón</option></select></div>
       <div><label>Perfil</label><select id="profile"><option value="pre">Inicio / activación</option><option value="normal">Entrenamiento normal</option><option value="high">Alta intensidad</option></select></div>
       <button class="green" onclick="generate20()">⚡ Generar 20'</button></div>
@@ -4028,7 +4027,9 @@ window.addEventListener('load',()=>{
   }
   function recentExercises(h,n=5){return h.slice(0,n).flatMap(s=>(s.training_session_exercises||[]).map(e=>Number(e.exercise_id)).filter(Boolean))}
   function recentFamilies(h,n=4){return h.slice(0,n).flatMap(s=>(s.training_session_exercises||[]).map(e=>EX.find(x=>Number(x.id)===Number(e.exercise_id))).filter(Boolean).map(family))}
-  function rangeOk(x,p){const z=String(x.players||'').split('-').map(Number);return p>=z[0]&&p<=(z[1]||z[0])}
+  // El número de jugadores ya no limita la selección automática.
+  // El entrenador adapta el ejercicio al grupo real disponible.
+  function rangeOk(x,p){return true}
   function equipmentOk(x,eq){return eq==='normal'||(eq==='low'&&!/Balones|petos/i.test(x.material||''))||(eq==='ball'&&x.ball!=='Sin balón')}
   function goalScore(x,g){
     if(g==='auto')return 0;
@@ -4065,7 +4066,7 @@ window.addEventListener('load',()=>{
     return top[Math.floor(Math.random()*top.length)].x;
   }
   window.generate20=async function(){
-    const g=document.getElementById('goal').value,p=Number(document.getElementById('players').value),eq=document.getElementById('equipment').value;
+    const g=document.getElementById('goal').value,eq=document.getElementById('equipment').value;
     const profile=document.getElementById('profile')?.value||'pre';
     const history=readHistory();
     if(profile==='pre'){
