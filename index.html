@@ -302,6 +302,19 @@ header .inner,.wrap{width:100%}
   .session-block-title{flex-direction:column}
   .session-block-title .time{order:-1}
 }
+
+/* Temporada Infantil · organización visual por panel y meses */
+.infantil-generator-panel{margin:0}
+.infantil-generator-summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:1.08rem;font-weight:800;padding:14px 16px;border-radius:14px;background:#f6fbf8;border:1px solid #d8e7df;color:#17352a}
+.infantil-generator-summary::-webkit-details-marker{display:none}
+.infantil-generator-summary span{font-size:.9rem;transition:transform .2s ease}
+.infantil-generator-panel[open] .infantil-generator-summary span{transform:rotate(180deg)}
+.infantil-generator-content{padding-top:14px}
+.fc-month-group{margin:12px 0;border:1px solid #d8e7df;border-radius:14px;overflow:hidden;background:#fff}
+.fc-month-group>summary{cursor:pointer;list-style:none;padding:13px 15px;font-weight:800;color:#17352a;background:#f6fbf8;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.fc-month-group>summary::-webkit-details-marker{display:none}
+.fc-month-meta{font-size:.82rem;font-weight:700;color:#60746b}
+.fc-month-body{padding:8px}
 </style>
 <style>
 /* Esquema visual de tareas infantiles */
@@ -3009,7 +3022,9 @@ window.switchMainTab = window.switchMainTab || function(tab){
 
 <section id="seasonTab" style="display:none">
   <div class="season-card">
-    <h2 style="margin-top:0">📅 Generador semanal · Infantil Fútbol Sala</h2>
+    <details class="infantil-generator-panel" open>
+      <summary class="infantil-generator-summary">📅 Generador semanal · Infantil Fútbol Sala <span>▼</span></summary>
+      <div class="infantil-generator-content">
     <p class="hint">Genera <b>una semana cada vez</b>, con dos sesiones y progresión durante la temporada. La estructura toma como base tu planificación del año pasado y combina ejercicios de la biblioteca evitando repeticiones cercanas.</p>
     <div class="season-grid">
       <div style="display:none"><label>Inicio de temporada</label><input id="seasonStart" type="date" value="2026-08-25"></div>
@@ -3033,6 +3048,8 @@ window.switchMainTab = window.switchMainTab || function(tab){
       <button type="button" id="btnClearInfantilWeeks" class="danger">Vaciar todas</button>
     </div>
     <div id="seasonSummary"></div>
+      </div>
+    </details>
   </div>
 
   <div class="season-card">
@@ -4615,38 +4632,56 @@ window.esc = window.esc || function(v){
   function render(history){
     const el=document.getElementById('seasonWeeks'); if(!el)return;
     if(!history.length){el.innerHTML='<div class="empty">Todavía no hay semanas generadas.</div>';return}
-    el.innerHTML=history.sort((a,b)=>a.weekNo-b.weekNo).map((w,wi)=>`
-      <details class="week-card" ${wi===history.length-1?'open':''}>
-        <summary><span>SEMANA ${w.weekNo} · ${esc(w.sessions[0].dateLabel)} — ${esc(w.sessions[1].dateLabel)}</span><span class="week-meta">2 sesiones · ${esc(w.phase)}</span></summary>
-        <div class="week-body">
-          <div class="season-note"><b>Enfoque:</b> ${esc(w.focus.join(' · '))}</div>
-          ${w.sessions.map((s,si)=>`
-            <div class="fc-rebuild-day">
-              <div class="fc-rebuild-day-title"><span>${s.day.toUpperCase()}</span><span class="fc-rebuild-day-date">${esc(s.dateLabel)}</span></div>
-              ${s.rows.map((r,ri)=>`
-                <div class="fc-rebuild-exercise ${r.block==='match'?'fc-rebuild-match':''}">
-                  <div class="fc-rebuild-ex-title">
-                    <strong>${esc(r.name)}</strong>
-                    <div class="fc-title-right">
-                      ${r.block!=='match'?`<div class="fc-exercise-actions">
-                        <button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace(${w.weekNo},${si},${ri});event.stopPropagation()">🔄 Automático</button>
-                        <button class="week-manual fc-rebuild-manual" onclick="fcManualExercise(${w.weekNo},${si},${ri});event.stopPropagation()">✏️ Manual</button>
-                      </div>`:''}
-                      <span class="time">${esc(r.time)}</span>
+    const months={};
+    history.slice().sort((a,b)=>a.weekNo-b.weekNo).forEach(w=>{
+      const raw=(w.sessions&&w.sessions[0]&&w.sessions[0].date)||'';
+      let d=raw?new Date(raw+'T12:00:00'):null;
+      if(!d||Number.isNaN(d.getTime())) d=new Date();
+      const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      const label=d.toLocaleDateString('es-ES',{month:'long',year:'numeric'});
+      if(!months[key])months[key]={label:label.charAt(0).toUpperCase()+label.slice(1),weeks:[]};
+      months[key].weeks.push(w);
+    });
+    const monthGroups=Object.keys(months).sort().map((key,mi)=>{
+      const group=months[key];
+      const cards=group.weeks.map(w=>`
+        <details class="week-card">
+          <summary><span>SEMANA ${w.weekNo} · ${esc(w.sessions[0].dateLabel)} — ${esc(w.sessions[1].dateLabel)}</span><span class="week-meta">2 sesiones · ${esc(w.phase)}</span></summary>
+          <div class="week-body">
+            <div class="season-note"><b>Enfoque:</b> ${esc((w.focus||[]).join(' · '))}</div>
+            ${w.sessions.map((s,si)=>`
+              <div class="fc-rebuild-day">
+                <div class="fc-rebuild-day-title"><span>${s.day.toUpperCase()}</span><span class="fc-rebuild-day-date">${esc(s.dateLabel)}</span></div>
+                ${s.rows.map((r,ri)=>`
+                  <div class="fc-rebuild-exercise ${r.block==='match'?'fc-rebuild-match':''}">
+                    <div class="fc-rebuild-ex-title">
+                      <strong>${esc(r.name)}</strong>
+                      <div class="fc-title-right">
+                        ${r.block!=='match'?`<div class="fc-exercise-actions">
+                          <button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace(${w.weekNo},${si},${ri});event.stopPropagation()">🔄 Automático</button>
+                          <button class="week-manual fc-rebuild-manual" onclick="fcManualExercise(${w.weekNo},${si},${ri});event.stopPropagation()">✏️ Manual</button>
+                        </div>`:''}
+                        <span class="time">${esc(r.time)}</span>
+                      </div>
                     </div>
+                    <details class="fc-rebuild-details">
+                      <summary>▼ Ver objetivo y detalles</summary>
+                      <div class="fc-rebuild-details-body">${exerciseDetailHtml(r)}</div>
+                    </details>
+                    ${r.manualImage?'<details class="fc-manual-image-details"><summary>▼ Ver imagen del ejercicio</summary><img class="fc-manual-image" src="'+esc(r.manualImage)+'" alt="Esquema de '+esc(r.name)+'"></details>':scheme(r)}
                   </div>
-                  <details class="fc-rebuild-details">
-                    <summary>▼ Ver objetivo y detalles</summary>
-                    <div class="fc-rebuild-details-body">${exerciseDetailHtml(r)}</div>
-                  </details>
-                  ${r.manualImage?'<details class="fc-manual-image-details"><summary>▼ Ver imagen del ejercicio</summary><img class="fc-manual-image" src="'+esc(r.manualImage)+'" alt="Esquema de '+esc(r.name)+'"></details>':scheme(r)}
-                </div>
-              `).join('')}
-            </div>
-          `).join('')}
-          <div class="week-card-actions"><button class="danger small" onclick="event.preventDefault();event.stopPropagation();fcRebuildDelete(${w.weekNo})">🗑️ Eliminar semana</button></div>
-        </div>
-      </details>`).join('');
+                `).join('')}
+              </div>
+            `).join('')}
+            <div class="week-card-actions"><button class="danger small" onclick="event.preventDefault();event.stopPropagation();fcRebuildDelete(${w.weekNo})">🗑️ Eliminar semana</button></div>
+          </div>
+        </details>`).join('');
+      return `<details class="fc-month-group" ${mi===0?'open':''}>
+        <summary><span>📅 ${esc(group.label)}</span><span class="fc-month-meta">${group.weeks.length} ${group.weeks.length===1?'semana':'semanas'} · ▼</span></summary>
+        <div class="fc-month-body">${cards}</div>
+      </details>`;
+    }).join('');
+    el.innerHTML=monthGroups;
   }
 
   window.__fcInfantilRender=render;
