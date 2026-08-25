@@ -3036,7 +3036,7 @@ window.switchMainTab = window.switchMainTab || function(tab){
 </details>
 <button class="add" onclick="addExercise(157)">＋ Añadir a sesión</button></article></div><div id="empty" class="empty">No hay ejercicios con esos filtros.</div></div>
 <div id="session" class="session"><div class="sessionHead"><b>Mi sesión · primeros 20'</b><button onclick="toggleSession()">✕</button></div><div id="sessionList" class="sessionList"></div>
-<div class="sessionFoot"><div class="total">Tiempo total: <span id="totalTime">0.0</span> min</div><div id="sessionWarn" class="warn"></div><button class="green" onclick="exportSession()" style="margin-top:8px">⬇ Exportar sesión</button>
+<div class="sessionFoot"><div class="total">Tiempo total: <span id="totalTime">0.0</span> min</div><div id="sessionWarn" class="warn"></div><div id="sessionEditStatus" style="font-size:12px;font-weight:800;color:#174b3a;margin-top:6px"></div><button class="green" onclick="exportSession()" style="margin-top:8px">⬇ Exportar sesión</button> <button id="sessionSaveBtn" class="green" onclick="saveCurrentGeneratedSession()" style="margin-top:8px;display:none">💾 Guardar cambios</button>
 <button onclick="clearSession()" style="margin-top:8px;background:#fee2e2;color:#991b1b">Vaciar</button></div></div>
 
 <section id="seasonTab" style="display:none">
@@ -3868,45 +3868,56 @@ window.addEventListener('load',()=>{
   window.saveCurrentGeneratedSession=function(){savePlan(session||[]);};
 
   window.loadHistorySession=async function(id){
-    const cached=localHistory();
-    const h=cached.find(x=>String(x.id)===String(id));
-    if(h){
-      const plan=(h.training_session_exercises||[]).map(e=>{
-        const x=EX.find(z=>Number(z.id)===Number(e.exercise_id));
-        return x?{...x,minutes:Number(e.minutes||10)}:null;
-      }).filter(Boolean);
-      if(plan.length){
-        session=plan;
-        activeSessionId=h.id||null;
-        activeSessionMeta=h;
-        lastSavedPlanKey=plan.map(x=>Number(x.id)).join(',');
-        lastGeneratedPlanKey=lastSavedPlanKey;
-        renderSession();
-        renderGeneratedSession();
-        document.getElementById('session').classList.add('show');
-        document.getElementById('generated')?.scrollIntoView({behavior:'smooth',block:'start'});
-        return;
-      }
-    }
-    const c=historyClient();
-    if(c && id){
-      c.from('training_sessions').select('id,name,session_date,duration_minutes,training_session_exercises(id,exercise_id,sort_order,minutes)').eq('id',id).single().then(({data,error})=>{
-        if(error){setStatus('No se pudo abrir la sesión.',true);return;}
-        const plan=(data.training_session_exercises||[]).sort((a,b)=>a.sort_order-b.sort_order).map(e=>{
+    try{
+      const c=historyClient();
+      if(!c || !id) throw new Error('No se ha podido identificar la sesión.');
+
+      // Ver sesión siempre abre el editor directamente desde Supabase.
+      const {data,error}=await c.from('training_sessions')
+        .select('id,name,team,session_date,duration_minutes,objective,notes,created_at,training_session_exercises(id,exercise_id,sort_order,minutes,notes)')
+        .eq('id',id)
+        .eq('team','Senior')
+        .single();
+      if(error) throw error;
+
+      const plan=(data.training_session_exercises||[])
+        .slice()
+        .sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0))
+        .map(e=>{
           const x=EX.find(z=>Number(z.id)===Number(e.exercise_id));
           return x?{...x,minutes:Number(e.minutes||10)}:null;
         }).filter(Boolean);
-        if(!plan.length){setStatus('No se encontraron los ejercicios de esa sesión.',true);return;}
-        session=plan;
-        activeSessionId=id;
-        activeSessionMeta=data;
-        lastSavedPlanKey=plan.map(x=>Number(x.id)).join(',');
-        lastGeneratedPlanKey=lastSavedPlanKey;
-        renderSession();
-        renderGeneratedSession();
-        document.getElementById('session').classList.add('show');
-        document.getElementById('generated')?.scrollIntoView({behavior:'smooth',block:'start'});
-      });
+
+      if(!plan.length) throw new Error('No se encontraron los ejercicios de esa sesión.');
+
+      session=plan;
+      activeSessionId=data.id;
+      activeSessionMeta=data;
+      lastSavedPlanKey=plan.map(x=>Number(x.id)).join(',');
+      lastGeneratedPlanKey=lastSavedPlanKey;
+
+      // Abrimos exclusivamente la ventana de edición de la sesión existente.
+      renderSession();
+      const panel=document.getElementById('session');
+      if(panel) panel.classList.add('show');
+
+      const saveBtn=document.getElementById('sessionSaveBtn');
+      if(saveBtn) saveBtn.style.display='inline-block';
+      const status=document.getElementById('sessionEditStatus');
+      if(status) status.textContent='Editando: '+(data.name||'Sesión');
+
+      // Mostramos también la cabecera de la sesión actual, pero sin generar una nueva.
+      const out=document.getElementById('generated');
+      if(out){
+        out.style.display='block';
+        out.innerHTML='<div class="generated-session-head"><h3>'+escHTML(data.name||'Sesión')+'</h3><div class="generated-session-actions"><button class="light" onclick="exportSession()">⬇ Exportar sesión</button><button class="green" onclick="saveCurrentGeneratedSession()">💾 Guardar cambios</button></div></div>';
+      }
+
+      setStatus('Sesión abierta para editar. Los cambios se guardarán en la misma sesión.');
+      panel?.scrollIntoView({behavior:'smooth',block:'start'});
+    }catch(err){
+      console.error('No se pudo abrir la sesión para editar.',err);
+      setStatus(`No se pudo abrir la sesión: ${err.message||err}`,true);
     }
   };
 
