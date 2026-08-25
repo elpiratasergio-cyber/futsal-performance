@@ -3876,12 +3876,15 @@ window.addEventListener('load',()=>{
         return x?{...x,minutes:Number(e.minutes||10)}:null;
       }).filter(Boolean);
       if(plan.length){
-        session=plan; activeSessionId=h.id||null; activeSessionMeta=h; lastSavedPlanKey=plan.map(x=>Number(x.id)).join(','); lastGeneratedPlanKey=lastSavedPlanKey; renderSession(); renderGeneratedSession();
+        session=plan;
+        activeSessionId=h.id||null;
+        activeSessionMeta=h;
+        lastSavedPlanKey=plan.map(x=>Number(x.id)).join(',');
+        lastGeneratedPlanKey=lastSavedPlanKey;
+        renderSession();
+        renderGeneratedSession();
         document.getElementById('session').classList.add('show');
-        const out=document.getElementById('generated');
-        out.style.display='block';
-        out.innerHTML='<div class="generated-session-head"><h3>'+escHTML(h.name)+'</h3><div class="actions"><button class="light" onclick="exportSession()">⬇ Exportar</button></div></div>'+
-          plan.map((x,i)=>`<div class="gitem clickable" onclick="openExercise(${x.id})"><b>${i+1}</b><div><b>${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.objective)}</small></div><b>${x.minutes}'</b></div>`).join('');
+        document.getElementById('generated')?.scrollIntoView({behavior:'smooth',block:'start'});
         return;
       }
     }
@@ -3894,10 +3897,15 @@ window.addEventListener('load',()=>{
           return x?{...x,minutes:Number(e.minutes||10)}:null;
         }).filter(Boolean);
         if(!plan.length){setStatus('No se encontraron los ejercicios de esa sesión.',true);return;}
-        session=plan; activeSessionId=id; activeSessionMeta=data; lastSavedPlanKey=plan.map(x=>Number(x.id)).join(','); lastGeneratedPlanKey=lastSavedPlanKey; renderSession();renderGeneratedSession();document.getElementById('session').classList.add('show');
-        const out=document.getElementById('generated');out.style.display='block';
-        out.innerHTML='<div class="generated-session-head"><h3>'+escHTML(data.name)+'</h3></div>'+
-          plan.map((x,i)=>`<div class="gitem clickable" onclick="openExercise(${x.id})"><b>${i+1}</b><div><b>${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.objective)}</small></div><b>${x.minutes}'</b></div>`).join('');
+        session=plan;
+        activeSessionId=id;
+        activeSessionMeta=data;
+        lastSavedPlanKey=plan.map(x=>Number(x.id)).join(',');
+        lastGeneratedPlanKey=lastSavedPlanKey;
+        renderSession();
+        renderGeneratedSession();
+        document.getElementById('session').classList.add('show');
+        document.getElementById('generated')?.scrollIntoView({behavior:'smooth',block:'start'});
       });
     }
   };
