@@ -3275,7 +3275,7 @@ function renderGeneratorPicker(index){const list=document.getElementById('genPic
 function filterGeneratorPicker(){const idx=Number(document.querySelector('#genPickerOverlay h3')?.textContent.match(/(\d+)/)?.[1]||1)-1;renderGeneratorPicker(idx)}
 function selectGeneratorExercise(index,id){const fresh=EX.find(x=>Number(x.id)===Number(id));if(!fresh||!session[index])return;session[index]={...fresh,minutes:Number(session[index].minutes||10)};document.getElementById('genPickerOverlay')?.remove();renderSession();renderGeneratedSession();document.getElementById('session')?.classList.add('show')}
 function addIndividualExerciseToGenerated(){let idx=session.length;session.push({...({name:'Nuevo ejercicio'}),minutes:2});renderSession();openGeneratorExercisePicker(idx)}
-function renderGeneratedSession(){const out=document.getElementById('generated');if(!out||!session.length)return;out.style.display='block';out.innerHTML='<div class="generated-session-head"><h3>Sesión · '+session.reduce((a,x)=>a+Number(x.minutes||0),0).toFixed(1)+' minutos · '+session.length+' ejercicios</h3><div class="generated-session-actions"><button class="light" onclick="addIndividualExerciseToGenerated()">＋ Añadir ejercicio</button><button class="green" onclick="saveCurrentGeneratedSession?.()">'+(activeSessionId?'💾 Guardar cambios':'💾 Guardar')+'</button></div></div>'+session.map((x,i)=>`<div class="gitem"><b>${i+1}</b><div><b>${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.objective||'')}${x.custom?' · ⭐ Propio':''}</small></div><div class="gitem-actions"><button class="light" onclick="replaceGeneratedExercise(${i},'random')">🔄 Aleatorio</button><button class="light" onclick="openGeneratorExercisePicker(${i})">✏️ Cambiar</button><b class="gtime">${Number(x.minutes||0)}'</b></div></div>`).join('')}
+function renderGeneratedSession(){const out=document.getElementById('generated');if(!out||!session.length)return;out.style.display='block';out.innerHTML='<div class="generated-session-head"><h3>Sesión · '+session.reduce((a,x)=>a+Number(x.minutes||0),0).toFixed(1)+' minutos · '+session.length+' ejercicios</h3><div class="generated-session-actions"><button class="light" onclick="addIndividualExerciseToGenerated()">＋ Añadir ejercicio</button><button class="green" onclick="saveCurrentGeneratedSession?.()">'+(window.activeSessionId?'💾 Guardar cambios':'💾 Guardar')+'</button></div></div>'+session.map((x,i)=>`<div class="gitem"><b>${i+1}</b><div><b>${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.objective||'')}${x.custom?' · ⭐ Propio':''}</small></div><div class="gitem-actions"><button class="light" onclick="replaceGeneratedExercise(${i},'random')">🔄 Aleatorio</button><button class="light" onclick="openGeneratorExercisePicker(${i})">✏️ Cambiar</button><b class="gtime">${Number(x.minutes||0)}'</b></div></div>`).join('')}
 function toggleSession(){document.getElementById('session').classList.toggle('show')}function clearSession(){session=[];renderSession()}
 function goalMatch(x,g){if(g==='accel')return /Aceleración|Velocidad/.test(x.cat+x.type);if(g==='cod')return /Frenada|COD|Cambio de dirección|Agilidad/.test(x.cat+x.type);if(g==='power')return /Potencia|reactiv|Fuerza reactiva/.test(x.cat+x.type);if(g==='tech')return /Técnica|Velocidad/.test(x.cat+x.type);if(g==='specific')return /Integrado|Específico|Finalización|Rondo|Posesión/.test(x.cat+x.type);if(g==='react')return /Reacción|Agilidad/.test(x.cat+x.type);return true}
 function pick(a,u){let b=a.filter(x=>!u.has(x.id));return b.length?b[Math.floor(Math.random()*b.length)]:a[Math.floor(Math.random()*a.length)]}
@@ -3786,6 +3786,7 @@ window.addEventListener('load',()=>{
   let lastSavedPlanKey='';
   let lastGeneratedPlanKey='';
   let activeSessionId=null;
+  window.activeSessionId=null;
   let activeSessionMeta=null;
 
   async function savePlan(plan){
@@ -3892,6 +3893,7 @@ window.addEventListener('load',()=>{
 
       session=plan;
       activeSessionId=data.id;
+      window.activeSessionId=data.id;
       activeSessionMeta=data;
       lastSavedPlanKey=plan.map(x=>Number(x.id)).join(',');
       lastGeneratedPlanKey=lastSavedPlanKey;
@@ -4076,7 +4078,7 @@ window.addEventListener('load',()=>{
     const plan=[{...first,minutes:10},{...second,minutes:10}];
     lastGeneratedPlanKey=plan.map(x=>Number(x.id)).join(',');
     lastSavedPlanKey='';
-    session=plan;activeSessionId=null;activeSessionMeta=null;renderSession();
+    session=plan;activeSessionId=null;window.activeSessionId=null;activeSessionMeta=null;renderSession();
     // Calculamos N + fecha justo al generar, consultando Supabase primero.
     let meta;
     try{
