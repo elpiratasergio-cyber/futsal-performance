@@ -315,6 +315,25 @@ header .inner,.wrap{width:100%}
 .fc-month-group>summary::-webkit-details-marker{display:none}
 .fc-month-meta{font-size:.82rem;font-weight:700;color:#60746b}
 .fc-month-body{padding:8px}
+
+/* === Editor de sesiones generadas · Generador 20' === */
+.generated-session-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.generated-session-head h3{margin:0}
+.generated-session-actions{display:flex;gap:6px;flex-wrap:wrap}
+.gitem-actions{display:flex;gap:5px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.gitem-actions button{padding:6px 8px;font-size:11px}
+.gitem-actions .gtime{font-weight:800;white-space:nowrap}
+.gen-picker-overlay{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;padding:16px;z-index:100}
+.gen-picker-overlay.show{display:flex}
+.gen-picker{background:#fff;border-radius:18px;width:min(720px,100%);max-height:85vh;overflow:auto;padding:18px;box-shadow:0 20px 70px #0005}
+.gen-picker-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.gen-picker-head h3{margin:0}
+.gen-picker-search{margin-bottom:10px}
+.gen-picker-list{display:grid;gap:7px;max-height:52vh;overflow:auto}
+.gen-picker-option{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;text-align:left;border:1px solid var(--line);background:#f8fbf9;padding:10px;border-radius:11px}
+.gen-picker-option:hover{background:var(--soft)}
+.gen-picker-option small{display:block;color:var(--muted);margin-top:3px}
+.gen-picker-option .custom-badge{font-size:10px;font-weight:800;color:#166534}
 </style>
 <style>
 /* Esquema visual de tareas infantiles */
@@ -3247,7 +3266,16 @@ fill('cat',uniq(EX.map(x=>x.cat)));fill('type',uniq(EX.map(x=>x.type)));fill('ba
 function filterCards(){const q=document.getElementById('search').value.toLowerCase(),f={cat:cat.value,type:type.value,ball:ball.value,intensity:intensity.value,players:playersFilter.value};let n=0;document.querySelectorAll('.card').forEach(c=>{const x=EX.find(e=>e.id==c.dataset.id),s=c.dataset.search;const ok=(!q||s.includes(q))&&(!f.cat||x.cat==f.cat)&&(!f.type||x.type==f.type)&&(!f.ball||x.ball==f.ball)&&(!f.intensity||x.intensity==f.intensity)&&(!f.players||x.players==f.players);c.style.display=ok?'flex':'none';if(ok)n++});document.getElementById('count').textContent=n;document.getElementById('empty').style.display=n?'none':'block'}
 function randomVisible(){const a=[...document.querySelectorAll('.card')].filter(c=>c.style.display!=='none');if(!a.length)return;const c=a[Math.floor(Math.random()*a.length)];c.scrollIntoView({behavior:'smooth',block:'center'});c.style.outline='4px solid #86efac';setTimeout(()=>c.style.outline='',1200)}
 function addExercise(id){const x=EX.find(e=>e.id==id);session.push({...x,minutes:2});renderSession();document.getElementById('session').classList.add('show')}function removeExercise(i){session.splice(i,1);renderSession()}
-function renderSession(){const list=document.getElementById('sessionList');list.innerHTML='';session.forEach((x,i)=>{const d=document.createElement('div');d.className='item';d.innerHTML=`<div><b>${i+1}. ${x.name}</b><small>${x.cat} · ${x.intensity}</small></div><input type="number" min="0.5" max="10" step="0.5" value="${x.minutes}" onchange="session[${i}].minutes=Number(this.value);renderSession()"><button class="remove" onclick="removeExercise(${i})">×</button>`;list.appendChild(d)});const t=session.reduce((a,x)=>a+Number(x.minutes||0),0);document.getElementById('totalTime').textContent=t.toFixed(1);document.getElementById('sessionCount').textContent=session.length;document.getElementById('sessionWarn').textContent=t>20?'⚠ La sesión supera 20 minutos.':t<18?'Puedes añadir 1-2 minutos de transición/pausa.':''}
+function renderSession(){const list=document.getElementById('sessionList');if(!list)return;list.innerHTML='';session.forEach((x,i)=>{const d=document.createElement('div');d.className='item';d.innerHTML=`<div><b>${i+1}. ${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.intensity)}${x.custom?' · ⭐ Propio':''}</small></div><input type="number" min="0.5" max="10" step="0.5" value="${Number(x.minutes||0)}" onchange="session[${i}].minutes=Number(this.value);renderSession();renderGeneratedSession()"><div class="gitem-actions"><button class="light" onclick="replaceGeneratedExercise(${i},'random')" title="Cambiar aleatoriamente">🔄</button><button class="light" onclick="openGeneratorExercisePicker(${i})" title="Elegir ejercicio">✏️</button><button class="remove" onclick="removeExercise(${i})">×</button></div>`;list.appendChild(d)});const t=session.reduce((a,x)=>a+Number(x.minutes||0),0);const total=document.getElementById('totalTime');if(total)total.textContent=t.toFixed(1);const count=document.getElementById('sessionCount');if(count)count.textContent=session.length;const warn=document.getElementById('sessionWarn');if(warn)warn.textContent=t>20?'⚠ La sesión supera 20 minutos.':t<18?'Puedes añadir 1-2 minutos de transición/pausa.':'';if(typeof renderGeneratedSession==='function')renderGeneratedSession()}
+
+function generatorEligibleExercises(excludeIds=new Set()){const g=document.getElementById('goal')?.value||'auto',p=Number(document.getElementById('players')?.value||0),eq=document.getElementById('equipment')?.value||'normal';let pool=EX.filter(x=>x.useInGenerator!==false&&!isActivationOrIndividual(x)&&!excludeIds.has(Number(x.id)));pool=pool.filter(x=>{const z=String(x.players||'').split('-').map(Number),min=z[0]||0,max=z[1]||z[0]||0;const range=!min||!max||p>=min&&p<=max;const goal=goalMatch(x,g);const eqok=eq==='normal'||(eq==='low'&&!/Balones|petos/i.test(x.material||''))||(eq==='ball'&&x.ball!=='Sin balón');return range&&goal&&eqok});if(pool.length<1)pool=EX.filter(x=>x.useInGenerator!==false&&!isActivationOrIndividual(x)&&!excludeIds.has(Number(x.id)));return pool}
+function replaceGeneratedExercise(index,mode='random'){if(!session[index])return;const excluded=new Set(session.map((x,i)=>i===index?null:Number(x.id)).filter(v=>v!=null));let pool=generatorEligibleExercises(excluded);if(!pool.length){alert('No hay otro ejercicio compatible para sustituirlo.');return}const old=session[index];const fresh=pool[Math.floor(Math.random()*pool.length)];session[index]={...fresh,minutes:Number(old.minutes||10)};renderSession();renderGeneratedSession();document.getElementById('session')?.classList.add('show')}
+function openGeneratorExercisePicker(index){if(!session[index])return;let old=document.getElementById('genPickerOverlay');if(old)old.remove();const overlay=document.createElement('div');overlay.id='genPickerOverlay';overlay.className='gen-picker-overlay show';overlay.innerHTML=`<div class="gen-picker"><div class="gen-picker-head"><h3>✏️ Cambiar ejercicio · ${index+1}</h3><button onclick="document.getElementById('genPickerOverlay').remove()">✕</button></div><input id="genPickerSearch" class="gen-picker-search" placeholder="Buscar ejercicio..." oninput="filterGeneratorPicker()"><div id="genPickerList" class="gen-picker-list"></div></div>`;document.body.appendChild(overlay);overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});renderGeneratorPicker(index)}
+function renderGeneratorPicker(index){const list=document.getElementById('genPickerList');if(!list)return;const q=(document.getElementById('genPickerSearch')?.value||'').toLowerCase().trim();const excluded=new Set(session.map((x,i)=>i===index?null:Number(x.id)).filter(v=>v!=null));const pool=EX.filter(x=>!excluded.has(Number(x.id))).filter(x=>{const text=[x.name,x.cat,x.type,x.objective,x.material,x.players].join(' ').toLowerCase();return !q||text.includes(q)});list.innerHTML=pool.map(x=>`<button class="gen-picker-option" onclick="selectGeneratorExercise(${index},${Number(x.id)})"><span><b>${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.objective||'')}</small>${x.custom?'<span class="custom-badge">⭐ Ejercicio propio</span>':''}</span><span>Seleccionar</span></button>`).join('')||'<div class="empty" style="display:block">No hay ejercicios que coincidan.</div>'}
+function filterGeneratorPicker(){const idx=Number(document.querySelector('#genPickerOverlay h3')?.textContent.match(/(\d+)/)?.[1]||1)-1;renderGeneratorPicker(idx)}
+function selectGeneratorExercise(index,id){const fresh=EX.find(x=>Number(x.id)===Number(id));if(!fresh||!session[index])return;session[index]={...fresh,minutes:Number(session[index].minutes||10)};document.getElementById('genPickerOverlay')?.remove();renderSession();renderGeneratedSession();document.getElementById('session')?.classList.add('show')}
+function addIndividualExerciseToGenerated(){let idx=session.length;session.push({...({name:'Nuevo ejercicio'}),minutes:2});renderSession();openGeneratorExercisePicker(idx)}
+function renderGeneratedSession(){const out=document.getElementById('generated');if(!out||!session.length)return;out.style.display='block';out.innerHTML='<div class="generated-session-head"><h3>Sesión · '+session.reduce((a,x)=>a+Number(x.minutes||0),0).toFixed(1)+' minutos · '+session.length+' ejercicios</h3><div class="generated-session-actions"><button class="light" onclick="addIndividualExerciseToGenerated()">＋ Añadir ejercicio</button><button class="green" onclick="saveCurrentGeneratedSession?.()">💾 Guardar</button></div></div>'+session.map((x,i)=>`<div class="gitem"><b>${i+1}</b><div><b>${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.objective||'')}${x.custom?' · ⭐ Propio':''}</small></div><div class="gitem-actions"><button class="light" onclick="replaceGeneratedExercise(${i},'random')">🔄 Aleatorio</button><button class="light" onclick="openGeneratorExercisePicker(${i})">✏️ Cambiar</button><b class="gtime">${Number(x.minutes||0)}'</b></div></div>`).join('')}
 function toggleSession(){document.getElementById('session').classList.toggle('show')}function clearSession(){session=[];renderSession()}
 function goalMatch(x,g){if(g==='accel')return /Aceleración|Velocidad/.test(x.cat+x.type);if(g==='cod')return /Frenada|COD|Cambio de dirección|Agilidad/.test(x.cat+x.type);if(g==='power')return /Potencia|reactiv|Fuerza reactiva/.test(x.cat+x.type);if(g==='tech')return /Técnica|Velocidad/.test(x.cat+x.type);if(g==='specific')return /Integrado|Específico|Finalización|Rondo|Posesión/.test(x.cat+x.type);if(g==='react')return /Reacción|Agilidad/.test(x.cat+x.type);return true}
 function pick(a,u){let b=a.filter(x=>!u.has(x.id));return b.length?b[Math.floor(Math.random()*b.length)]:a[Math.floor(Math.random()*a.length)]}
@@ -3384,7 +3412,7 @@ async function generate20(){
     renderSession();
     const out=document.getElementById('generated');
     out.style.display='block';
-    out.innerHTML='<h3>Sesión · 20 minutos · 2 ejercicios de 10 minutos</h3>'+plan.map((x,i)=>`<div class="gitem clickable" onclick="openExercise(${x.id})"><b>${i+1}</b><div><b>${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.objective)}</small></div><b>${x.minutes}'</b></div>`).join('');
+    renderGeneratedSession();
   }catch(err){
     console.error(err);
     alert(`No se ha podido generar la sesión.\n\n${err?.message||err}`);
@@ -3811,7 +3839,7 @@ window.addEventListener('load',()=>{
         return x?{...x,minutes:Number(e.minutes||10)}:null;
       }).filter(Boolean);
       if(plan.length){
-        session=plan; renderSession();
+        session=plan; renderSession(); renderGeneratedSession();
         document.getElementById('session').classList.add('show');
         const out=document.getElementById('generated');
         out.style.display='block';
@@ -3829,7 +3857,7 @@ window.addEventListener('load',()=>{
           return x?{...x,minutes:Number(e.minutes||10)}:null;
         }).filter(Boolean);
         if(!plan.length){setStatus('No se encontraron los ejercicios de esa sesión.',true);return;}
-        session=plan;renderSession();document.getElementById('session').classList.add('show');
+        session=plan;renderSession();renderGeneratedSession();document.getElementById('session').classList.add('show');
         const out=document.getElementById('generated');out.style.display='block';
         out.innerHTML='<div class="generated-session-head"><h3>'+escHTML(data.name)+'</h3></div>'+
           plan.map((x,i)=>`<div class="gitem clickable" onclick="openExercise(${x.id})"><b>${i+1}</b><div><b>${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.objective)}</small></div><b>${x.minutes}'</b></div>`).join('');
