@@ -4067,6 +4067,7 @@ window.addEventListener('load',()=>{
   }
   window.generate20=async function(){
     const g=document.getElementById('goal').value,eq=document.getElementById('equipment').value;
+    const p=0; // El número de jugadores ya no limita la selección automática.
     const profile=document.getElementById('profile')?.value||'pre';
     const history=readHistory();
     if(profile==='pre'){
@@ -4083,7 +4084,18 @@ window.addEventListener('load',()=>{
       if(first&&second){
         const plan=[{...first,minutes:10},{...second,minutes:10}];
         lastGeneratedPlanKey=plan.map(x=>Number(x.id)).join(','); lastSavedPlanKey=''; session=plan; renderSession();
-        let meta; try{meta=await window.prepareNextSessionMeta()}catch(e){meta={date:nextTrainingDate(),name:defaultName(nextTrainingDate(),1),nextNumber:1};}
+        let meta;
+        try{
+          meta=await window.prepareNextSessionMeta();
+        }catch(e){
+          console.warn('No se pudo calcular automáticamente la siguiente sesión.',e);
+          const date=nextTrainingDate();
+          meta={date,name:defaultName(date,1),nextNumber:1};
+          const dateEl=document.getElementById('sessionDate');
+          const nameEl=document.getElementById('sessionName');
+          if(dateEl) dateEl.value=date;
+          if(nameEl) nameEl.value=meta.name;
+        }
         const out=document.getElementById('generated'); out.style.display='block';
         out.innerHTML='<div class="generated-session-head"><h3>'+escHTML(meta.name)+'</h3><div class="actions"><button class="light" onclick="saveCurrentGeneratedSession()">💾 Guardar</button></div></div>'+plan.map((x,i)=>`<div class="gitem clickable" onclick="openExercise(${x.id})"><b>${i+1}</b><div><b>${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.objective)}</small></div><b>${x.minutes}'</b></div>`).join('');
         return;
