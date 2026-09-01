@@ -5132,13 +5132,15 @@ window.esc = window.esc || function(v){
     var save=el('btnSaveInfantilWeek');
     var load=el('btnLoadInfantilWeek');
     var clear=el('btnClearInfantilWeeks');
-    if(gen)gen.onclick=function(e){
+    if(gen)gen.onclick=async function(e){
       e.preventDefault();e.stopImmediatePropagation();
       try{
-        /* El generador trabaja con la caché de Supabase ya cargada.\n           Generar NO guarda: solo prepara la semana. */
+        /* Sincronizar primero con Supabase para generar sobre el estado real. */
+        var latest=await fetchHistory();
+        setCache(latest);
         if(typeof window.generateInfantilWeek!=='function')throw new Error('El generador de temporada no está disponible.');
-        window.generateInfantilWeek();
-      }catch(err){alert('No se ha podido generar la semana.\\n\\n'+(err&&err.message?err.message:String(err)));}
+        await window.generateInfantilWeek();
+      }catch(err){alert('No se ha podido generar la semana.\n\n'+(err&&err.message?err.message:String(err)));}
     };
     if(save)save.onclick=function(e){
       e.preventDefault();e.stopImmediatePropagation();
@@ -5159,6 +5161,38 @@ window.esc = window.esc || function(v){
       x.onclick=function(e){e.preventDefault();e.stopImmediatePropagation();changeWeek(1).catch(function(err){alert(err.message||String(err));});};
     });
   }
+  /* La eliminación debe persistir en Supabase. El renderer anterior conserva
+     una función histórica que solo modificaba la caché en memoria; la sustituimos
+     aquí, exclusivamente para Temporada Infantil. */
+  window.fcConfirmDeleteWeek=function(week){
+    (async function(){
+      try{
+        var n=Number(week);
+        var r=await client().from(TABLE).delete().eq('device_key',DEVICE_KEY).eq('week_no',n);
+        if(r.error)throw r.error;
+        var history=await fetchHistory();
+        setCache(history);
+        if(window.__infantilWeek && Number(window.__infantilWeek.weekNo)===n) window.__infantilWeek=null;
+        var modal=document.getElementById('fcDeleteWeekModal'); if(modal)modal.remove();
+        redraw(history);
+        note('Semana '+n+' eliminada correctamente de <b>Supabase</b>.');
+      }catch(err){
+        alert('No se ha podido eliminar la semana.\n\n'+(err&&err.message?err.message:String(err)));
+      }
+    })();
+  };
+
+  /* Generación: conserva el algoritmo actual, pero garantiza que la caché esté
+     sincronizada antes de construir una nueva semana. */
+  var __fcOriginalGenerate=window.generateInfantilWeek;
+  if(typeof __fcOriginalGenerate==='function'){
+    window.generateInfantilWeek=async function(){
+      var latest=await fetchHistory();
+      setCache(latest);
+      return __fcOriginalGenerate();
+    };
+  }
+
   /* Se expone únicamente el renderer de Infantil. No se usa window.render genérico. */
   function hookRenderer(){
     if(typeof window.__fcInfantilRender==='function')return true;
