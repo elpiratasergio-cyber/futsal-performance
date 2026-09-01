@@ -3041,7 +3041,7 @@ window.switchMainTab = window.switchMainTab || function(tab){
 
 <section id="seasonTab" style="display:none">
   <div class="season-card">
-    <details class="infantil-generator-panel" open>
+    <details class="infantil-generator-panel">
       <summary class="infantil-generator-summary">📅 Generador semanal · Infantil Fútbol Sala <span>▼</span></summary>
       <div class="infantil-generator-content">
     <p class="hint">Genera <b>una semana cada vez</b>, con dos sesiones y progresión durante la temporada. La estructura toma como base tu planificación del año pasado y combina ejercicios de la biblioteca evitando repeticiones cercanas.</p>
@@ -4790,23 +4790,45 @@ window.esc = window.esc || function(v){
       '</div>';
   }
 
-  function render(history){
+  function render(history, viewOptions){
     const el=document.getElementById('seasonWeeks'); if(!el)return;
-    if(!history.length){el.innerHTML='<div class="empty">Todavía no hay semanas generadas.</div>';return}
+    const opts=viewOptions||{};
+    const preserve=!!opts.preserve;
+    const focusLatest=opts.focusLatest!==false;
+    const scrollY=preserve?(window.scrollY||window.pageYOffset||0):0;
+    const openDetails=preserve?[...el.querySelectorAll('details')].map((d,i)=>d.open?i:-1).filter(i=>i>=0):[];
+
+    // La caja del Generador Semanal permanece plegada al entrar/recargar.
+    if(!preserve){
+      const generatorPanel=document.querySelector('#seasonTab .infantil-generator-panel');
+      if(generatorPanel)generatorPanel.open=false;
+    }
+
+    if(!history.length){
+      el.innerHTML='<div class="empty">Todavía no hay semanas generadas.</div>';
+      return;
+    }
+
+    const sortedHistory=history.slice().sort((a,b)=>Number(a.weekNo)-Number(b.weekNo));
+    const latestWeek=sortedHistory.reduce((max,w)=>Number(w.weekNo)>max?Number(w.weekNo):max,0);
     const months={};
-    history.slice().sort((a,b)=>a.weekNo-b.weekNo).forEach(w=>{
+    sortedHistory.forEach(w=>{
       const raw=(w.sessions&&w.sessions[0]&&w.sessions[0].date)||'';
       let d=raw?new Date(raw+'T12:00:00'):null;
-      if(!d||Number.isNaN(d.getTime())) d=new Date();
+      if(!d||Number.isNaN(d.getTime()))d=new Date();
       const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
       const label=d.toLocaleDateString('es-ES',{month:'long',year:'numeric'});
       if(!months[key])months[key]={label:label.charAt(0).toUpperCase()+label.slice(1),weeks:[]};
       months[key].weeks.push(w);
     });
-    const monthGroups=Object.keys(months).sort().map((key,mi)=>{
+
+    const monthGroups=Object.keys(months).sort().map(key=>{
       const group=months[key];
-      const cards=group.weeks.map(w=>`
-        <details class="week-card">
+      const monthHasLatest=group.weeks.some(w=>Number(w.weekNo)===latestWeek);
+      const cards=group.weeks.map(w=>{
+        const isLatest=Number(w.weekNo)===latestWeek;
+        return `
+        <details class="week-card" data-week-no="${Number(w.weekNo)}" ${(!preserve&&focusLatest&&isLatest)?'open':''}>
           <summary><span>SEMANA ${w.weekNo} · ${esc(w.sessions[0].dateLabel)} — ${esc(w.sessions[1].dateLabel)}</span><span class="week-meta">2 sesiones · ${esc(w.phase)}</span></summary>
           <div class="week-body">
             <div class="season-note"><b>Enfoque:</b> ${esc((w.focus||[]).join(' · '))}</div>
@@ -4836,13 +4858,31 @@ window.esc = window.esc || function(v){
             `).join('')}
             <div class="week-card-actions"><button class="danger small" onclick="event.preventDefault();event.stopPropagation();fcRebuildDelete(${w.weekNo})">🗑️ Eliminar semana</button></div>
           </div>
-        </details>`).join('');
-      return `<details class="fc-month-group" ${mi===0?'open':''}>
+        </details>`;
+      }).join('');
+      return `<details class="fc-month-group" ${(!preserve&&focusLatest&&monthHasLatest)?'open':''}>
         <summary><span>📅 ${esc(group.label)}</span><span class="fc-month-meta">${group.weeks.length} ${group.weeks.length===1?'semana':'semanas'} · ▼</span></summary>
         <div class="fc-month-body">${cards}</div>
       </details>`;
     }).join('');
     el.innerHTML=monthGroups;
+
+    if(preserve){
+      requestAnimationFrame(()=>{
+        const rebuilt=document.getElementById('seasonWeeks');
+        if(rebuilt){
+          [...rebuilt.querySelectorAll('details')].forEach((d,i)=>{d.open=openDetails.includes(i)});
+        }
+        window.scrollTo({top:scrollY,left:0,behavior:'auto'});
+      });
+    }else if(focusLatest){
+      const weekInput=document.getElementById('seasonWeek');
+      if(weekInput&&latestWeek)weekInput.value=String(latestWeek);
+      requestAnimationFrame(()=>{
+        const latestCard=document.querySelector('#seasonWeeks .week-card[data-week-no="'+latestWeek+'"]');
+        if(latestCard)latestCard.scrollIntoView({block:'start',behavior:'auto'});
+      });
+    }
   }
 
   window.__fcInfantilRender=render;
@@ -4878,28 +4918,13 @@ window.esc = window.esc || function(v){
     const row=w.sessions[si].rows[ri];
     if(!row||!row.exercise)return;
 
-    // El renderer reconstruye el HTML de la semana. Guardamos la posición y
-    // qué desplegables estaban abiertos para que el clic en "Automático"
-    // cambie solo el ejercicio y no lleve al usuario arriba ni cierre la vista.
-    const scrollY=window.scrollY||window.pageYOffset||0;
-    const season=document.getElementById('seasonWeeks');
-    const openDetails=season?[...season.querySelectorAll('details')].map((d,i)=>d.open?i:-1).filter(i=>i>=0):[];
-
     const pf=phase(week,w.options&&w.options.goal||'development');pf.goal=w.options&&w.options.goal||'development';
     const used=new Set();
     w.sessions.forEach(s=>s.rows.forEach(r=>{if(r.exercise&&r!==row)used.add(keyExercise(r.exercise))}));
     const recent=recentCounts(hist,week);
     const fresh=pick(row.block,pf,pf.goal,used,recent,si);
     row.exercise=fresh;row.name=fresh.name;row.objective=fresh.objective;row.desc=fresh.execution;
-    save(hist);window.__infantilWeek=w;render(hist);
-
-    requestAnimationFrame(()=>{
-      const rebuilt=document.getElementById('seasonWeeks');
-      if(rebuilt){
-        [...rebuilt.querySelectorAll('details')].forEach((d,i)=>{d.open=openDetails.includes(i)});
-      }
-      window.scrollTo({top:scrollY,left:0,behavior:'auto'});
-    });
+    save(hist);window.__infantilWeek=w;render(hist,{preserve:true});
   };
 
 
@@ -4953,7 +4978,8 @@ window.esc = window.esc || function(v){
       row.exercise.execution=row.desc;
       row.exercise.manual=true;
       if(img){row.manualImage=img;row.exercise.manualImage=img;}
-      save(hist);window.__infantilWeek=w;document.getElementById('fcManualModal')?.remove();render(hist);
+      document.getElementById('fcManualModal')?.remove();
+      save(hist);window.__infantilWeek=w;render(hist,{preserve:true});
     };
     if(file){
       const reader=new FileReader();
@@ -4994,9 +5020,9 @@ window.esc = window.esc || function(v){
   const oldSwitch=window.switchMainTab;
   window.switchMainTab=function(tab){
     if(typeof oldSwitch==='function')oldSwitch(tab);
-    if(tab==='season')setTimeout(()=>render(load()),50);
+    if(tab==='season')setTimeout(()=>{const panel=document.querySelector('#seasonTab .infantil-generator-panel');if(panel)panel.open=false;render(load(),{focusLatest:true});},50);
   };
-  document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>render(load()),100));
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{const panel=document.querySelector('#seasonTab .infantil-generator-panel');if(panel)panel.open=false;render(load(),{focusLatest:true});},100));
 })();
 </script>
 
@@ -5066,6 +5092,12 @@ window.esc = window.esc || function(v){
   async function initialise(){
     var history=await fetchHistory();
     setCache(history);
+    if(history.length){
+      var latest=history.reduce(function(max,w){return Number(w.weekNo)>max?Number(w.weekNo):max;},0);
+      setWeek(latest);
+      window.__infantilWeek=history.find(function(w){return Number(w.weekNo)===latest;})||null;
+    }
+    var panel=document.querySelector('#seasonTab .infantil-generator-panel'); if(panel)panel.open=false;
     redraw(history);
     var p=el('seasonPlayers'); if(p)p.value='16';
   }
