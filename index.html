@@ -3611,6 +3611,57 @@ window.addEventListener('load',()=>{
     }));
   }
 
+  /*
+   * Compatibilidad entre la biblioteca de ejercicios propios y el esquema de
+   * sesiones. training_session_exercises.exercise_id tiene FK a public.exercises,
+   * mientras que los ejercicios propios viven en public.ejercicios. Como el cliente
+   * público no tiene permiso de INSERT en public.exercises, no intentamos romper la
+   * FK: para cada ejercicio propio usamos un ID de ejercicio activo válido como
+   * referencia y guardamos una copia completa del ejercicio en notes. Al cargar la
+   * sesión, ese JSON se reconstruye y el entrenador vuelve a ver el ejercicio propio.
+   */
+  const CUSTOM_SESSION_NOTE_PREFIX='FP_CUSTOM_EXERCISE_V1:';
+  let cachedExercisePlaceholderId=null;
+
+  async function getValidExercisePlaceholderId(c){
+    if(cachedExercisePlaceholderId!=null)return cachedExercisePlaceholderId;
+    const r=await c.from('exercises').select('id').eq('active',true).order('id',{ascending:true}).limit(1).maybeSingle();
+    if(r.error)throw r.error;
+    if(!r.data?.id)throw new Error('No hay ejercicios válidos en Supabase para guardar la sesión.');
+    cachedExercisePlaceholderId=Number(r.data.id);
+    return cachedExercisePlaceholderId;
+  }
+
+  function customSessionPayload(x){
+    return CUSTOM_SESSION_NOTE_PREFIX+JSON.stringify({
+      id:Number(x.id),name:x.name,cat:x.cat,type:x.type,ball:x.ball,intensity:x.intensity,
+      players:x.players,dose:x.dose,objective:x.objective,execution:x.execution,material:x.material,
+      mode:x.mode,youtube:x.youtube||null,youtube_search:x.youtube_search||null,
+      visual_config:x.visual_config||{},photo:x.photo||null,custom:true,
+      useInGenerator:x.useInGenerator!==false
+    });
+  }
+
+  function customFromSessionNote(note){
+    if(typeof note!=='string'||!note.startsWith(CUSTOM_SESSION_NOTE_PREFIX))return null;
+    try{
+      const x=JSON.parse(note.slice(CUSTOM_SESSION_NOTE_PREFIX.length));
+      return {...x,id:Number(x.id),custom:true};
+    }catch(e){return null;}
+  }
+
+  async function prepareSessionRows(c,plan,sessionId){
+    const customItems=plan.filter(x=>x?.custom);
+    const placeholder=customItems.length?await getValidExercisePlaceholderId(c):null;
+    return plan.map((x,i)=>({
+      session_id:sessionId,
+      exercise_id:x.custom?placeholder:Number(x.id),
+      sort_order:i+1,
+      minutes:Number(x.minutes||10),
+      notes:x.custom?customSessionPayload(x):null
+    }));
+  }
+
   async function persistSession(plan, date, name){
     const c=historyClient();
     if(!c) return null;
@@ -3620,12 +3671,15 @@ window.addEventListener('load',()=>{
       device_key:deviceKey
     }).select('id,name,team,session_date,duration_minutes,objective,notes,created_at').single();
     if(error) throw error;
-    const rows=plan.map((x,i)=>({
-      session_id:data.id, exercise_id:Number(x.id), sort_order:i+1, minutes:Number(x.minutes||10)
-    }));
-    const ins=await c.from('training_session_exercises').insert(rows);
-    if(ins.error) throw ins.error;
-    return {...data,training_session_exercises:rows};
+    try{
+      const rows=await prepareSessionRows(c,plan,data.id);
+      const ins=await c.from('training_session_exercises').insert(rows);
+      if(ins.error)throw ins.error;
+      return {...data,training_session_exercises:rows};
+    }catch(err){
+      await c.from('training_sessions').delete().eq('id',data.id).eq('device_key',deviceKey);
+      throw err;
+    }
   }
 
   function monthKey(date){
@@ -3678,9 +3732,11 @@ window.addEventListener('load',()=>{
         const label=s.name || `SESIÓN ${idx+1}`;
         const dateLabel=isoToEs(s.session_date||'');
         const exerciseRows=exercises.map((e,i)=>{
-          const ex=EX.find(x=>Number(x.id)===Number(e.exercise_id));
-          return `<div class="history-exercise" onclick="event.preventDefault();event.stopPropagation();openExercise(${Number(e.exercise_id)})">
-            <span><b>${i+1}.</b> ${escHTML(ex?.name||('Ejercicio #'+e.exercise_id))}</span>
+          const custom=customFromSessionNote(e.notes);
+          const ex=custom||EX.find(x=>Number(x.id)===Number(e.exercise_id));
+          const click=custom?'':'onclick="event.preventDefault();event.stopPropagation();openExercise('+Number(e.exercise_id)+')"';
+          return `<div class="history-exercise" ${click}>
+            <span><b>${i+1}.</b> ${escHTML(ex?.name||('Ejercicio #'+e.exercise_id))}${custom?' · ⭐ Propio':''}</span>
             <b>${Number(e.minutes||10)}'</b>
           </div>`;
         }).join('');
@@ -3811,7 +3867,7 @@ window.addEventListener('load',()=>{
         if(up.error) throw up.error;
         const del=await c.from('training_session_exercises').delete().eq('session_id',activeSessionId);
         if(del.error) throw del.error;
-        const rows=plan.map((x,i)=>({session_id:activeSessionId,exercise_id:Number(x.id),sort_order:i+1,minutes:Number(x.minutes||10)}));
+        const rows=await prepareSessionRows(c,plan,activeSessionId);
         const ins=await c.from('training_session_exercises').insert(rows);
         if(ins.error) throw ins.error;
         activeSessionMeta={...up.data,training_session_exercises:rows};
@@ -3888,7 +3944,8 @@ window.addEventListener('load',()=>{
         .slice()
         .sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0))
         .map(e=>{
-          const x=EX.find(z=>Number(z.id)===Number(e.exercise_id));
+          const custom=customFromSessionNote(e.notes);
+          const x=custom||EX.find(z=>Number(z.id)===Number(e.exercise_id));
           return x?{...x,minutes:Number(e.minutes||10)}:null;
         }).filter(Boolean);
 
