@@ -4499,6 +4499,15 @@ window.esc = window.esc || function(v){
 .fc-title-right{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-shrink:0}
 .fc-block-label{font-size:11px;font-weight:800;color:#60756c;white-space:nowrap;text-transform:none}
 .fc-title-right .fc-exercise-actions{margin:0;display:flex;align-items:center;gap:8px}
+@media (max-width:700px){
+  .fc-rebuild-ex-title{display:grid;grid-template-columns:1fr;gap:8px;align-items:start}
+  .fc-rebuild-ex-title>strong{display:block;width:100%;font-size:16px;line-height:1.28}
+  .fc-title-right{width:100%;display:flex;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:7px}
+  .fc-title-right .fc-exercise-actions{order:1;width:100%;display:flex;gap:8px}
+  .fc-title-right .fc-exercise-actions button{flex:1;min-width:0}
+  .fc-title-right .fc-block-label{order:2;margin-left:2px}
+  .fc-title-right .time{order:3;margin-left:auto}
+}
 .fc-title-right .fc-exercise-actions button{margin:0!important}
 .fc-rebuild-details{margin-top:7px}
 .fc-rebuild-details summary{cursor:pointer;color:#173f31;font-weight:800;font-size:13px}
@@ -4930,7 +4939,7 @@ window.esc = window.esc || function(v){
               <div class="fc-rebuild-day">
                 <div class="fc-rebuild-day-title"><span>${s.day.toUpperCase()}</span><span class="fc-rebuild-day-date">${esc(s.dateLabel)}</span></div>
                 ${s.rows.map((r,ri)=>`
-                  <div class="fc-rebuild-exercise ${r.block==='match'?'fc-rebuild-match':''}">
+                  <div class="fc-rebuild-exercise ${r.block==='match'?'fc-rebuild-match':''}" data-fc-week="${Number(w.weekNo)}" data-fc-si="${si}" data-fc-ri="${ri}">
                     <div class="fc-rebuild-ex-title">
                       <strong>${esc(r.name)}</strong>
                       <div class="fc-title-right">
@@ -4938,7 +4947,14 @@ window.esc = window.esc || function(v){
                           <button type="button" class="week-exchange fc-rebuild-change" onclick="event.preventDefault();event.stopPropagation();fcRebuildReplace(${w.weekNo},${si},${ri});return false">🔄 Automático</button>
                           <button type="button" class="week-manual fc-rebuild-manual" onclick="event.preventDefault();event.stopPropagation();fcManualExercise(${w.weekNo},${si},${ri});return false">✏️ Manual</button>
                         </div>`:''}
-                        <span class="fc-block-label">${esc(r.block==='mobility'?'Movilidad articular':r.block==='minigame'?'Minijuego / activación':r.block==='possession'?'Posesión / circuito técnico':r.block==='finishing'?'Finalización':r.block==='technicalTactical'?'Técnico-táctico':r.block==='match'?'Partido':'')}</span>
+                        <span class="fc-block-label">${esc(
+                          r.block==='mobility'?'Movilidad articular':
+                          r.block==='minigame'?'Minijuego / activación':
+                          r.block==='possession'?'Posesión / circuito técnico':
+                          r.block==='finishing'?'Finalización':
+                          (r.block==='technicalTactical'||r.block==='technical'||r.block==='technical-tactical'||r.block==='tecnico-tactico'||r.block==='técnico-táctico')?'Técnico-táctico':
+                          r.block==='match'?'Partido':''
+                        )}</span>
                         <span class="time">${esc(r.time)}</span>
                       </div>
                     </div>
@@ -5008,13 +5024,14 @@ window.esc = window.esc || function(v){
   window.generateInfantilWeek=generate;
 
   window.fcRebuildReplace=function(week,si,ri){
-    const __fcScrollY=window.scrollY||window.pageYOffset||0;
-    const __fcSeasonWeeks=document.getElementById('seasonWeeks');
-    const __fcOpenDetails=__fcSeasonWeeks?[...__fcSeasonWeeks.querySelectorAll('details')].map((d,i)=>d.open?i:-1).filter(i=>i>=0):[];
     const hist=load(),w=hist.find(x=>Number(x.weekNo)===Number(week));
     if(!w||!w.sessions[si])return;
     const row=w.sessions[si].rows[ri];
     if(!row||!row.exercise)return;
+
+    // Legacy plans can have the fifth block stored as "technical".
+    // Normalize it before selecting the automatic replacement.
+    if(ri===4 || ['technical','technical-tactical','tecnico-tactico','técnico-táctico'].includes(String(row.block||''))) row.block='technicalTactical';
 
     const pf=phase(week,w.options&&w.options.goal||'development');pf.goal=w.options&&w.options.goal||'development';
     const used=new Set();
@@ -5022,14 +5039,32 @@ window.esc = window.esc || function(v){
     const recent=recentCounts(hist,week);
     const fresh=pick(row.block,pf,pf.goal,used,recent,si);
     row.exercise=fresh;row.name=fresh.name;row.objective=fresh.objective;row.desc=fresh.execution;
-    save(hist);window.__infantilWeek=w;render(hist,{preserve:true});
-    requestAnimationFrame(()=>{
-      const root=document.getElementById('seasonWeeks');
-      if(root){
-        [...root.querySelectorAll('details')].forEach((d,i)=>{d.open=__fcOpenDetails.includes(i)});
-      }
-      window.scrollTo({top:__fcScrollY,left:0,behavior:'auto'});
-    });
+    save(hist);window.__infantilWeek=w;
+
+    // Update only the clicked exercise card. Do not rebuild seasonWeeks: that was
+    // causing the browser to recalculate the page and jump back to the exercise.
+    const card=document.querySelector('[data-fc-week="'+Number(week)+'"][data-fc-si="'+Number(si)+'"][data-fc-ri="'+Number(ri)+'"]');
+    if(card){
+      const title=card.querySelector('.fc-rebuild-ex-title>strong');
+      if(title)title.textContent=row.name||'';
+      const detailBody=card.querySelector('.fc-rebuild-details-body');
+      if(detailBody)detailBody.innerHTML=exerciseDetailHtml(row);
+
+      card.querySelectorAll('.fc-rebuild-scheme,.fc-manual-image-details').forEach(el=>el.remove());
+      const holder=document.createElement('div');
+      holder.innerHTML=row.manualImage
+        ? '<details class="fc-manual-image-details"><summary>▼ Ver imagen del ejercicio</summary><img class="fc-manual-image" src="'+esc(row.manualImage)+'" alt="Esquema de '+esc(row.name)+'"></details>'
+        : scheme(row);
+      while(holder.firstElementChild)card.appendChild(holder.firstElementChild);
+    }
+
+    // Persist the changed week without redrawing the page.
+    if(typeof window.fcPersistInfantilWeek==='function'){
+      window.fcPersistInfantilWeek(w).catch(function(err){
+        console.warn('No se pudo guardar automáticamente la sustitución en Supabase:',err);
+        alert('El ejercicio se ha cambiado, pero no se ha podido guardar en Supabase.\n\n'+(err&&err.message?err.message:String(err)));
+      });
+    }
   };
 
 
@@ -5206,6 +5241,25 @@ window.esc = window.esc || function(v){
     redraw(history);
     var p=el('seasonPlayers'); if(p)p.value='16';
   }
+  // Guarda una semana modificada desde acciones inline (p. ej. "Automático")
+  // sin redibujar la pestaña ni alterar la posición de scroll.
+  window.fcPersistInfantilWeek=async function(week){
+    if(!week)throw new Error('No hay una semana seleccionada.');
+    var c=client();
+    var r=await c.from(TABLE).upsert({
+      device_key:DEVICE_KEY,
+      week_no:Number(week.weekNo),
+      plan:week,
+      updated_at:new Date().toISOString()
+    },{onConflict:'device_key,week_no'});
+    if(r.error)throw r.error;
+    var history=await fetchHistory();
+    setCache(history);
+    var latest=history.find(function(w){return Number(w.weekNo)===Number(week.weekNo);});
+    if(latest)window.__infantilWeek=latest;
+    return latest||week;
+  };
+
   async function saveWeek(){
     var week=window.__infantilWeek;
     var selected=currentWeek();
