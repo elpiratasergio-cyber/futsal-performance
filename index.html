@@ -3327,6 +3327,26 @@ function generatorRecentStats(history){
   });
   return {ids,families};
 }
+function generatorProgressionStage(x){
+  const t=generatorText(x);
+  if(/activaci[oó]n|coordinaci[oó]n|movilidad|circuito t[eé]cnico|pase y|control orientado|tri[aá]ngulo|rondo 3x1|rondo 4x1/.test(t)) return 1;
+  if(/rondo|posesi[oó]n|apoyo|tercer hombre|juego reducido|3x3|4x4|2x2/.test(t)) return 2;
+  if(/1x1|2x1|3x2|duelo|presi[oó]n|transici[oó]n|oleada|contraataque|reacci[oó]n/.test(t)) return 3;
+  if(/finalizaci[oó]n|tiro|disparo|m[aá]xima|alta intensidad|sprint/.test(t)) return 4;
+  return 2;
+}
+function chooseProgressiveExercise(pool,options,targetStage){
+  if(!pool.length)return null;
+  const scored=pool.map(x=>{
+    const base=generatorScore(x,options);
+    const stage=generatorProgressionStage(x);
+    const distance=Math.abs(stage-targetStage);
+    const stageBonus=distance===0?28:distance===1?10:-18;
+    return {x,s:base+stageBonus};
+  }).sort((a,b)=>b.s-a.s);
+  const top=scored.slice(0,Math.min(5,scored.length));
+  return top[Math.floor(Math.random()*top.length)].x;
+}
 function generatorScore(x,{goal,profile,players,first,stats,used}){
   let s=0,t=generatorText(x),f=generatorFamily(x);
   if(goalMatch(x,goal))s+=45;
@@ -3374,48 +3394,34 @@ function chooseSmartExercise(pool,options){
 async function generate20(){
   try{
     const g=document.getElementById('goal').value;
-    const p=Number(document.getElementById('players').value);
+    const p=Number(document.getElementById('players')?.value||0);
     const eq=document.getElementById('equipment').value;
     const profile=document.getElementById('profile')?.value||'pre';
     let pool=EX.filter(x=>{
       if(isActivationOrIndividual(x))return false;
       const z=String(x.players||'').split('-').map(Number),min=z[0]||0,max=z[1]||z[0]||0;
-      const ok=p>=min&&p<=max;
+      const range=!min||!max||!p||p>=min&&p<=max;
       const goal=goalMatch(x,g);
       const eqok=eq==='normal'||(eq==='low'&&!/Balones|petos/i.test(x.material||''))||(eq==='ball'&&x.ball!=='Sin balón');
-      return ok&&goal&&eqok;
+      return range&&goal&&eqok;
     });
-    if(pool.length<4)pool=EX.filter(x=>!isActivationOrIndividual(x)&&gameRelevant(x,g));
+    if(pool.length<4)pool=EX.filter(x=>x.useInGenerator!==false&&!isActivationOrIndividual(x)&&gameRelevant(x,g));
     if(!pool.length)throw new Error('No hay ejercicios compatibles con los filtros seleccionados.');
-
-    let games=pool.filter(x=>x.cat.startsWith('Juego inicial')&&gameRelevant(x,g));
-    if(!games.length)games=GAMES.filter(x=>gameRelevant(x,g)&&Number(x.players.split('-')[0])<=p&&p<=Number(x.players.split('-')[1]));
-    if(!games.length)games=pool;
-
-    let main=pool.filter(x=>!x.cat.startsWith('Juego inicial'));
-    if(!main.length)main=pool;
-
     const history=await fetchSeniorGeneratorHistory(12);
     const stats=generatorRecentStats(history);
     const used=new Set();
-    const first=chooseSmartExercise(games,{goal:g,profile,players:p,first:null,stats,used});
+    const firstPool=pool.filter(x=>generatorProgressionStage(x)<=2);
+    const first=chooseProgressiveExercise(firstPool.length?firstPool:pool,{goal:g,profile,players:p,first:null,stats,used},1);
     if(!first)throw new Error('No se ha encontrado un primer ejercicio compatible.');
     used.add(Number(first.id));
-
-    let secondPool=main.filter(x=>{
-      const z=String(x.players||'').split('-').map(Number),min=z[0]||0,max=z[1]||z[0]||0;
-      return p>=min&&p<=max;
-    });
-    if(!secondPool.length)secondPool=main;
-    const second=chooseSmartExercise(secondPool,{goal:g,profile,players:p,first,stats,used});
+    const firstStage=generatorProgressionStage(first);
+    const secondPool=pool.filter(x=>!used.has(Number(x.id))&&generatorProgressionStage(x)>=Math.min(3,firstStage+1));
+    const fallbackSecond=pool.filter(x=>!used.has(Number(x.id)));
+    const second=chooseProgressiveExercise(secondPool.length?secondPool:fallbackSecond,{goal:g,profile,players:p,first,stats,used},Math.max(3,firstStage+1));
     if(!second)throw new Error('No se ha encontrado un segundo ejercicio compatible.');
-
     const plan=[{...first,minutes:10},{...second,minutes:10}];
-    session=plan;
-    renderSession();
-    const out=document.getElementById('generated');
-    out.style.display='block';
-    renderGeneratedSession();
+    session=plan; renderSession();
+    const out=document.getElementById('generated'); out.style.display='block'; renderGeneratedSession();
   }catch(err){
     console.error(err);
     alert(`No se ha podido generar la sesión.\n\n${err?.message||err}`);
@@ -3466,6 +3472,20 @@ function openExercise(id){
 const videoHtml=video?`<p><a class="yt-btn modal-yt" href="${escHTML(video)}" target="_blank" rel="noopener noreferrer">${x.youtube?'▶ Ver técnica en YouTube':'🔎 Buscar técnica en YouTube'}</a></p>`:'';
 const visual=x.custom?`<img class="custom-photo" src="${x.photo}" alt="${escHTML(x.name)}">`:getSchemeFromCard(x.id);
 document.getElementById('modalBody').innerHTML=`<div class="modalScheme">${visual}</div><p><b>Modalidad:</b> ${escHTML(x.mode)}</p><p><b>Objetivo:</b> ${escHTML(x.objective)}</p><p><b>Ejecución:</b> ${escHTML(x.execution)}</p><p><b>Material:</b> ${escHTML(x.material)}</p>${videoHtml}`;
+}
+function openCustomSessionExercise(exerciseId){
+  const map=window.__historyCustomExercises||{};
+  const x=map[String(exerciseId)];
+  if(!x)return;
+  const modal=document.getElementById('exerciseModal');
+  if(!modal)return;
+  modal.classList.add('show');
+  document.getElementById('modalTitle').textContent=x.name||'Ejercicio propio';
+  document.getElementById('modalMeta').innerHTML=`<span>${escHTML(x.cat||'Mis ejercicios')}</span><span>${escHTML(x.ball||'')}</span><span>${escHTML(x.intensity||'')}</span><span>${escHTML(x.dose||'')}</span><span>⭐ Propio</span>`;
+  const video=x.youtube||x.youtube_search;
+  const videoHtml=video?`<p><a class="yt-btn modal-yt" href="${escHTML(video)}" target="_blank" rel="noopener noreferrer">${x.youtube?'▶ Ver técnica en YouTube':'🔎 Buscar técnica en YouTube'}</a></p>`:'';
+  const visual=x.photo?`<img class="custom-photo" src="${escHTML(x.photo)}" alt="${escHTML(x.name)}">`:renderExerciseDiagram(x);
+  document.getElementById('modalBody').innerHTML=`<div class="modalScheme">${visual}</div><p><b>Modalidad:</b> ${escHTML(x.mode||'')}</p><p><b>Objetivo:</b> ${escHTML(x.objective||'')}</p><p><b>Ejecución:</b> ${escHTML(x.execution||'')}</p><p><b>Material:</b> ${escHTML(x.material||'')}</p>${videoHtml}`;
 }
 function getSchemeFromCard(id){const x=EX.find(e=>e.id==id);return x?renderExerciseDiagram(x):'';}
 function closeExercise(){document.getElementById('exerciseModal').classList.remove('show')}
@@ -3695,6 +3715,7 @@ window.addEventListener('load',()=>{
   }
 
   function renderHistory(items){
+    window.__historyCustomExercises={};
     const root=document.getElementById('historyList');
     if(!root)return;
     if(!items.length){
@@ -3733,8 +3754,9 @@ window.addEventListener('load',()=>{
         const dateLabel=isoToEs(s.session_date||'');
         const exerciseRows=exercises.map((e,i)=>{
           const custom=customFromSessionNote(e.notes);
+          if(custom) window.__historyCustomExercises[String(e.id)]=custom;
           const ex=custom||EX.find(x=>Number(x.id)===Number(e.exercise_id));
-          const click=custom?'':'onclick="event.preventDefault();event.stopPropagation();openExercise('+Number(e.exercise_id)+')"';
+          const click=custom?'onclick="event.preventDefault();event.stopPropagation();openCustomSessionExercise('+Number(e.id)+')"':'onclick="event.preventDefault();event.stopPropagation();openExercise('+Number(e.exercise_id)+')"';
           return `<div class="history-exercise" ${click}>
             <span><b>${i+1}.</b> ${escHTML(ex?.name||('Ejercicio #'+e.exercise_id))}${custom?' · ⭐ Propio':''}</span>
             <b>${Number(e.minutes||10)}'</b>
