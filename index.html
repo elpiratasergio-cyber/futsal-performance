@@ -4497,6 +4497,7 @@ window.esc = window.esc || function(v){
 }
 .fc-rebuild-ex-title strong{font-size:16px;flex:1;min-width:0}
 .fc-title-right{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-shrink:0}
+.fc-block-label{font-size:11px;font-weight:800;color:#60756c;white-space:nowrap;text-transform:none}
 .fc-title-right .fc-exercise-actions{margin:0;display:flex;align-items:center;gap:8px}
 .fc-title-right .fc-exercise-actions button{margin:0!important}
 .fc-rebuild-details{margin-top:7px}
@@ -4934,9 +4935,10 @@ window.esc = window.esc || function(v){
                       <strong>${esc(r.name)}</strong>
                       <div class="fc-title-right">
                         ${r.block!=='match'?`<div class="fc-exercise-actions">
-                          <button class="week-exchange fc-rebuild-change" onclick="fcRebuildReplace(${w.weekNo},${si},${ri});event.stopPropagation()">🔄 Automático</button>
-                          <button class="week-manual fc-rebuild-manual" onclick="fcManualExercise(${w.weekNo},${si},${ri});event.stopPropagation()">✏️ Manual</button>
+                          <button type="button" class="week-exchange fc-rebuild-change" onclick="event.preventDefault();event.stopPropagation();fcRebuildReplace(${w.weekNo},${si},${ri});return false">🔄 Automático</button>
+                          <button type="button" class="week-manual fc-rebuild-manual" onclick="event.preventDefault();event.stopPropagation();fcManualExercise(${w.weekNo},${si},${ri});return false">✏️ Manual</button>
                         </div>`:''}
+                        <span class="fc-block-label">${esc(r.block==='mobility'?'Movilidad articular':r.block==='minigame'?'Minijuego / activación':r.block==='possession'?'Posesión / circuito técnico':r.block==='finishing'?'Finalización':r.block==='technicalTactical'?'Técnico-táctico':r.block==='match'?'Partido':'')}</span>
                         <span class="time">${esc(r.time)}</span>
                       </div>
                     </div>
@@ -5006,6 +5008,9 @@ window.esc = window.esc || function(v){
   window.generateInfantilWeek=generate;
 
   window.fcRebuildReplace=function(week,si,ri){
+    const __fcScrollY=window.scrollY||window.pageYOffset||0;
+    const __fcSeasonWeeks=document.getElementById('seasonWeeks');
+    const __fcOpenDetails=__fcSeasonWeeks?[...__fcSeasonWeeks.querySelectorAll('details')].map((d,i)=>d.open?i:-1).filter(i=>i>=0):[];
     const hist=load(),w=hist.find(x=>Number(x.weekNo)===Number(week));
     if(!w||!w.sessions[si])return;
     const row=w.sessions[si].rows[ri];
@@ -5018,6 +5023,13 @@ window.esc = window.esc || function(v){
     const fresh=pick(row.block,pf,pf.goal,used,recent,si);
     row.exercise=fresh;row.name=fresh.name;row.objective=fresh.objective;row.desc=fresh.execution;
     save(hist);window.__infantilWeek=w;render(hist,{preserve:true});
+    requestAnimationFrame(()=>{
+      const root=document.getElementById('seasonWeeks');
+      if(root){
+        [...root.querySelectorAll('details')].forEach((d,i)=>{d.open=__fcOpenDetails.includes(i)});
+      }
+      window.scrollTo({top:__fcScrollY,left:0,behavior:'auto'});
+    });
   };
 
 
