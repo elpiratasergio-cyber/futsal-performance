@@ -342,6 +342,13 @@ header .inner,.wrap{width:100%}
 .fp-new-season-btn{border:0;border-radius:9px;padding:11px 14px;background:#183f32;color:#fff;font-weight:800;cursor:pointer}
 .fp-new-season-btn:hover{filter:brightness(1.08)}
 .fp-season-toolbar-card{margin-bottom:12px}
+.fp-season-manager-collapse{border:1px solid #dbe4df;border-radius:13px;background:#fff;overflow:hidden;margin:10px 0 14px}
+.fp-season-manager-collapse>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;cursor:pointer;list-style:none;background:#f2f6f3;color:#183f32;font-weight:850}
+.fp-season-manager-collapse>summary::-webkit-details-marker{display:none}
+.fp-season-manager-hint{font-size:12px;font-weight:700;color:#65766d}
+.fp-season-manager-content{padding:4px 14px 10px}
+.fp-season-manager-content .fp-season-toolbar{margin:8px 0}
+@media(max-width:600px){.fp-season-manager-collapse>summary{align-items:flex-start;flex-direction:column;gap:4px}.fp-season-manager-hint{font-size:11px}}
 
 .fp-season-archive{border:1px solid #d7e0da;border-radius:13px;background:#fff;overflow:hidden;margin:10px 0 14px}
 .fp-season-archive>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;cursor:pointer;list-style:none;background:#edf4ef;color:#183f32;font-weight:900}
@@ -637,10 +644,15 @@ window.switchMainTab = window.switchMainTab || function(tab){
         <button class="green" onclick="saveCurrentGeneratedSession()">💾 Guardar / comprobar sesión</button>
       </div>
       <div id="historyStatus" class="history-status"></div>
-      <div class="fp-season-toolbar">
-        <div><label for="fpSeasonSelectGenerator">Temporada</label><select id="fpSeasonSelectGenerator" class="fp-season-select"></select></div>
-        <button type="button" class="fp-new-season-btn" onclick="FPSeasons.startNewSeason()">＋ Empezar nueva temporada</button>
-      </div>
+      <details class="fp-season-manager-collapse">
+        <summary><span>🗂️ Gestión de temporadas</span><span class="fp-season-manager-hint">Cambiar o crear temporada　＋</span></summary>
+        <div class="fp-season-manager-content">
+          <div class="fp-season-toolbar">
+            <div><label for="fpSeasonSelectGenerator">Temporada</label><select id="fpSeasonSelectGenerator" class="fp-season-select"></select></div>
+            <button type="button" class="fp-new-season-btn" onclick="FPSeasons.startNewSeason()">＋ Empezar nueva temporada</button>
+          </div>
+        </div>
+      </details>
       <div id="historyList" class="history-list">
         <div class="history-empty">Todavía no hay sesiones guardadas.</div>
       </div>
@@ -3068,11 +3080,16 @@ window.switchMainTab = window.switchMainTab || function(tab){
 
 <section id="seasonTab" style="display:none">
   <div class="season-card fp-season-toolbar-card">
-    <div class="fp-season-toolbar">
-      <div><label for="fpSeasonSelectInfantil">Temporada de planificación</label><select id="fpSeasonSelectInfantil" class="fp-season-select"></select></div>
-      <button type="button" class="fp-new-season-btn" onclick="FPSeasons.startNewSeason()">＋ Empezar nueva temporada</button>
-    </div>
-    <p class="hint" style="margin:8px 0 0">Cada temporada conserva sus propias semanas. Las anteriores siguen disponibles desde el desplegable.</p>
+    <details class="fp-season-manager-collapse">
+      <summary><span>🗂️ Gestión de temporadas</span><span class="fp-season-manager-hint">Cambiar o crear temporada　＋</span></summary>
+      <div class="fp-season-manager-content">
+        <div class="fp-season-toolbar">
+          <div><label for="fpSeasonSelectInfantil">Temporada de planificación</label><select id="fpSeasonSelectInfantil" class="fp-season-select"></select></div>
+          <button type="button" class="fp-new-season-btn" onclick="FPSeasons.startNewSeason()">＋ Empezar nueva temporada</button>
+        </div>
+        <p class="hint" style="margin:8px 0 0">Cada temporada conserva sus propias semanas. Las anteriores siguen disponibles desde el desplegable.</p>
+      </div>
+    </details>
   </div>
   <div class="season-card">
     <details class="infantil-generator-panel">
