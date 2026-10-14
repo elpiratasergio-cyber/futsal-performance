@@ -334,6 +334,22 @@ header .inner,.wrap{width:100%}
 .gen-picker-option:hover{background:var(--soft)}
 .gen-picker-option small{display:block;color:var(--muted);margin-top:3px}
 .gen-picker-option .custom-badge{font-size:10px;font-weight:800;color:#166534}
+
+.fp-season-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:12px 0 16px;padding:12px;border:1px solid #dbe4df;border-radius:12px;background:#f8faf9}
+.fp-season-toolbar>div{display:flex;flex-direction:column;gap:5px;min-width:180px;flex:1}
+.fp-season-toolbar label{font-size:12px;font-weight:800;color:#52645b}
+.fp-season-select{width:100%;max-width:340px;padding:10px 12px;border:1px solid #cbd5cf;border-radius:9px;background:#fff;color:#17251e;font-weight:800}
+.fp-new-season-btn{border:0;border-radius:9px;padding:11px 14px;background:#183f32;color:#fff;font-weight:800;cursor:pointer}
+.fp-new-season-btn:hover{filter:brightness(1.08)}
+.fp-season-toolbar-card{margin-bottom:12px}
+
+.fp-season-archive{border:1px solid #d7e0da;border-radius:13px;background:#fff;overflow:hidden;margin:10px 0 14px}
+.fp-season-archive>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;cursor:pointer;list-style:none;background:#edf4ef;color:#183f32;font-weight:900}
+.fp-season-archive>summary::-webkit-details-marker{display:none}
+.fp-season-archive-body{padding:10px 12px 12px}
+.fp-season-archive-badge{font-size:11px;border-radius:99px;padding:4px 8px;background:#d8e9dd;color:#1e563e;white-space:nowrap}
+
+@media(max-width:600px){.fp-season-toolbar{align-items:stretch}.fp-season-select{max-width:none}.fp-new-season-btn{width:100%}}
 </style>
 <style>
 /* Esquema visual de tareas infantiles */
@@ -621,6 +637,10 @@ window.switchMainTab = window.switchMainTab || function(tab){
         <button class="green" onclick="saveCurrentGeneratedSession()">💾 Guardar / comprobar sesión</button>
       </div>
       <div id="historyStatus" class="history-status"></div>
+      <div class="fp-season-toolbar">
+        <div><label for="fpSeasonSelectGenerator">Temporada</label><select id="fpSeasonSelectGenerator" class="fp-season-select"></select></div>
+        <button type="button" class="fp-new-season-btn" onclick="FPSeasons.startNewSeason()">＋ Empezar nueva temporada</button>
+      </div>
       <div id="historyList" class="history-list">
         <div class="history-empty">Todavía no hay sesiones guardadas.</div>
       </div>
@@ -3047,6 +3067,13 @@ window.switchMainTab = window.switchMainTab || function(tab){
 <button onclick="clearSession()" style="margin-top:8px;background:#fee2e2;color:#991b1b">Vaciar</button></div></div>
 
 <section id="seasonTab" style="display:none">
+  <div class="season-card fp-season-toolbar-card">
+    <div class="fp-season-toolbar">
+      <div><label for="fpSeasonSelectInfantil">Temporada de planificación</label><select id="fpSeasonSelectInfantil" class="fp-season-select"></select></div>
+      <button type="button" class="fp-new-season-btn" onclick="FPSeasons.startNewSeason()">＋ Empezar nueva temporada</button>
+    </div>
+    <p class="hint" style="margin:8px 0 0">Cada temporada conserva sus propias semanas. Las anteriores siguen disponibles desde el desplegable.</p>
+  </div>
   <div class="season-card">
     <details class="infantil-generator-panel">
       <summary class="infantil-generator-summary">📅 Generador semanal · Infantil Fútbol Sala <span>▼</span></summary>
@@ -3294,9 +3321,11 @@ function gameRelevant(x,g){if(!x.cat.startsWith('Juego inicial'))return true;if(
 async function fetchSeniorGeneratorHistory(limit=12){
   try{
     if(!window.supabase?.createClient) return [];
+    if(window.FPSeasons?.ready) await window.FPSeasons.ready;
     const c=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
     const {data,error}=await c.from('training_sessions')
-      .select('id,session_date,created_at,objective,training_session_exercises(exercise_id,sort_order)')
+      .select('id,session_date,created_at,objective,season_key,training_session_exercises(exercise_id,sort_order)')
+      .eq('season_key',window.FPSeasons?.currentKey||'2026-27')
       .eq('team','Senior')
       .order('session_date',{ascending:false})
       .order('created_at',{ascending:false})
@@ -3616,7 +3645,7 @@ window.addEventListener('load',()=>{
     const c=historyClient();
     if(!c) return null;
     const {data,error}=await c.from('training_sessions')
-      .select('id,name,team,session_date,duration_minutes,objective,notes,created_at,device_key,training_session_exercises(id,exercise_id,sort_order,minutes,notes)')
+      .select('id,name,team,session_date,duration_minutes,objective,notes,created_at,device_key,season_key,training_session_exercises(id,exercise_id,sort_order,minutes,notes)')
       .eq('team','Senior')
       .order('session_date',{ascending:false})
       .order('created_at',{ascending:false});
@@ -3683,11 +3712,14 @@ window.addEventListener('load',()=>{
   async function persistSession(plan, date, name){
     const c=historyClient();
     if(!c) return null;
+    if(window.FPSeasons?.ready) await window.FPSeasons.ready;
+    const seasonKey=window.FPSeasons?.currentKey||'2026-27';
     const {data,error}=await c.from('training_sessions').insert({
       name, team:'Senior', session_date:date, duration_minutes:20,
       objective:document.getElementById('goal')?.value || 'auto',
+      season_key:seasonKey,
       device_key:deviceKey
-    }).select('id,name,team,session_date,duration_minutes,objective,notes,created_at').single();
+    }).select('id,name,team,session_date,duration_minutes,objective,notes,created_at,season_key').single();
     if(error) throw error;
     try{
       const rows=await prepareSessionRows(c,plan,data.id);
@@ -3715,8 +3747,12 @@ window.addEventListener('load',()=>{
   function renderHistory(items){
     const root=document.getElementById('historyList');
     if(!root)return;
+    const selectedSeason=window.FPSeasons?.currentKey||'2026-27';
+    items=(items||[]).filter(s=>(s.season_key||'2026-27')===selectedSeason);
+    const seasonObj=(window.FPSeasons?.seasons||[]).find(x=>x.season_key===selectedSeason);
+    const seasonLabel=seasonObj?.season_name||('Temporada '+selectedSeason);
     if(!items.length){
-      root.innerHTML='<div class="history-empty">Todavía no hay sesiones guardadas.</div>';
+      root.innerHTML='<details class="fp-season-archive" open><summary><span>📁 '+escHTML(seasonLabel)+'</span><span class="fp-season-archive-badge">Temporada seleccionada</span></summary><div class="fp-season-archive-body"><div class="history-empty">Todavía no hay sesiones guardadas en esta temporada.</div></div></details>';
       return;
     }
 
@@ -3741,7 +3777,7 @@ window.addEventListener('load',()=>{
       return b.localeCompare(a);
     });
 
-    root.innerHTML='<div class="history-month-list">'+monthKeys.map((key,monthIndex)=>{
+    const monthMarkup='<div class="history-month-list">'+monthKeys.map((key,monthIndex)=>{
       const monthItems=groups.get(key)||[];
       const monthBody=monthItems.map((s,idx)=>{
         const exercises=(s.training_session_exercises||[])
@@ -3785,6 +3821,7 @@ window.addEventListener('load',()=>{
         <div class="history-month-body">${monthBody}</div>
       </details>`;
     }).join('')+'</div>';
+    root.innerHTML='<details class="fp-season-archive" open><summary><span>📁 '+escHTML(seasonLabel)+'</span><span class="fp-season-archive-badge">'+items.length+' sesiones</span></summary><div class="fp-season-archive-body">'+monthMarkup+'</div></details>';
   }
 
   async function refreshHistory(){
@@ -3803,10 +3840,14 @@ window.addEventListener('load',()=>{
       setStatus(`No se pudo cargar el historial desde Supabase: ${err.message||err}`,true);
     }
   }
+  window.refreshSeniorHistory=refreshHistory;
 
-  async function computeNextSessionMeta(){
-    const items=await fetchCloudHistory();
-    if(!Array.isArray(items)) throw new Error('Supabase no está disponible.');
+    async function computeNextSessionMeta(){
+    const allItems=await fetchCloudHistory();
+    if(!Array.isArray(allItems)) throw new Error('Supabase no está disponible.');
+    if(window.FPSeasons?.ready) await window.FPSeasons.ready;
+    const selectedSeason=window.FPSeasons?.currentKey||'2026-27';
+    const items=allItems.filter(s=>(s.season_key||'2026-27')===selectedSeason);
 
     // Buscar el número más alto escrito en el nombre. Si hay duplicados, se mantiene
     // la secuencia y la siguiente será siempre el número siguiente al máximo.
@@ -3914,7 +3955,9 @@ window.addEventListener('load',()=>{
     try{
       const cloud=await fetchCloudHistory();
       if(!Array.isArray(cloud)) throw new Error('Supabase no está disponible.');
+      const selectedSeason=window.FPSeasons?.currentKey||'2026-27';
       const cloudExisting=cloud.find(s=>{
+        if((s.season_key||'2026-27')!==selectedSeason)return false;
         const ids=(s.training_session_exercises||[])
           .slice()
           .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0))
@@ -4565,8 +4608,9 @@ window.esc = window.esc || function(v){
   'use strict';
 
   const KEY='futsalPerformanceInfantilWeeklyV3';
-  const START=new Date('2026-08-25T12:00:00');
-  const END=new Date('2027-05-30T12:00:00');
+  let START=new Date('2026-08-25T12:00:00');
+  let END=new Date('2027-05-30T12:00:00');
+  window.FPSetInfantilSeasonDates=function(start,end){START=new Date(String(start)+'T12:00:00');END=new Date(String(end)+'T12:00:00');};
 
   function A(x){return Array.isArray(x)?x:[]}
   function n(x){return String(x==null?'':x).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
@@ -4588,7 +4632,7 @@ window.esc = window.esc || function(v){
   window.__fcInfantilGetHistory=function(){ return Array.isArray(infantilHistoryCache)?infantilHistoryCache.slice():[]; };
 
   function weekDates(week){
-    // Semana 1 empieza el martes 25/08/2026; cada semana suma 7 días.
+    // Semana 1 parte del inicio configurado para la temporada; cada semana suma 7 días.
     const t=addDays(START,(Number(week)-1)*7);
     const f=addDays(t,3);
     if(t>END || f>END)return null;
@@ -4946,8 +4990,11 @@ window.esc = window.esc || function(v){
       if(generatorPanel)generatorPanel.open=false;
     }
 
+    const selectedSeason=window.FPSeasons&&window.FPSeasons.currentKey||'2026-27';
+    const seasonObj=(window.FPSeasons&&window.FPSeasons.seasons||[]).find(function(x){return x.season_key===selectedSeason;});
+    const seasonLabel=seasonObj&&seasonObj.season_name||('Temporada '+selectedSeason);
     if(!history.length){
-      el.innerHTML='<div class="empty">Todavía no hay semanas generadas.</div>';
+      el.innerHTML='<details class="fp-season-archive" open><summary><span>📁 '+esc(seasonLabel)+'</span><span class="fp-season-archive-badge">Temporada seleccionada</span></summary><div class="fp-season-archive-body"><div class="empty">Todavía no hay semanas guardadas en esta temporada.</div></div></details>';
       return;
     }
 
@@ -5015,7 +5062,7 @@ window.esc = window.esc || function(v){
         <div class="fc-month-body">${cards}</div>
       </details>`;
     }).join('');
-    el.innerHTML=monthGroups;
+    el.innerHTML='<details class="fp-season-archive" open><summary><span>📁 '+esc(seasonLabel)+'</span><span class="fp-season-archive-badge">'+sortedHistory.length+' semanas</span></summary><div class="fp-season-archive-body">'+monthGroups+'</div></details>';
 
     if(preserve){
       requestAnimationFrame(()=>{
@@ -5042,7 +5089,7 @@ window.esc = window.esc || function(v){
       const inp=document.getElementById('seasonWeek');
       const week=Math.max(1,Number(inp&&inp.value)||1);
       const dates=weekDates(week);
-      if(!dates)throw new Error('La semana seleccionada queda fuera de la temporada 25/08/2026–30/05/2027.');
+      if(!dates)throw new Error('La semana seleccionada queda fuera de las fechas configuradas para esta temporada.');
       const opts=options();
       const pf=phase(week,opts.goal); pf.goal=opts.goal;
       const hist=load();
@@ -5295,9 +5342,12 @@ window.esc = window.esc || function(v){
     if(x)x.innerHTML='<div class="season-note">'+html+'</div>';
   }
   async function fetchHistory(){
+    if(window.FPSeasons&&window.FPSeasons.ready) await window.FPSeasons.ready;
+    var seasonKey=window.FPSeasons&&window.FPSeasons.currentKey||'2026-27';
     var r=await client().from(TABLE)
-      .select('id,week_no,plan,updated_at,created_at')
+      .select('id,week_no,plan,season_key,updated_at,created_at')
       .eq('device_key',DEVICE_KEY)
+      .eq('season_key',seasonKey)
       .order('week_no',{ascending:true})
       .order('updated_at',{ascending:false});
     if(r.error)throw r.error;
@@ -5307,7 +5357,7 @@ window.esc = window.esc || function(v){
       var n=Number(row.week_no);
       if(!row.plan || seen[n])return;
       seen[n]=true;
-      plans.push(row.plan);
+      plans.push(Object.assign({},row.plan,{seasonKey:row.season_key||'2026-27'}));
     });
     return plans.sort(function(a,b){return Number(a.weekNo)-Number(b.weekNo);});
   }
@@ -5330,13 +5380,17 @@ window.esc = window.esc || function(v){
   // sin redibujar la pestaña ni alterar la posición de scroll.
   window.fcPersistInfantilWeek=async function(week){
     if(!week)throw new Error('No hay una semana seleccionada.');
+    if(window.FPSeasons&&window.FPSeasons.ready) await window.FPSeasons.ready;
+    var seasonKey=window.FPSeasons&&window.FPSeasons.currentKey||'2026-27';
+    week.seasonKey=seasonKey;
     var c=client();
     var r=await c.from(TABLE).upsert({
       device_key:DEVICE_KEY,
+      season_key:seasonKey,
       week_no:Number(week.weekNo),
       plan:week,
       updated_at:new Date().toISOString()
-    },{onConflict:'device_key,week_no'});
+    },{onConflict:'device_key,season_key,week_no'});
     if(r.error)throw r.error;
     var history=await fetchHistory();
     setCache(history);
@@ -5357,15 +5411,18 @@ window.esc = window.esc || function(v){
       return;
     }
     week.options=Object.assign({},week.options||{}, {players:16});
+    if(window.FPSeasons&&window.FPSeasons.ready) await window.FPSeasons.ready;
+    var seasonKey=window.FPSeasons&&window.FPSeasons.currentKey||'2026-27';
+    week.seasonKey=seasonKey;
     var c=client();
-    /* Upsert atómico: una única fila por (device_key, week_no).
-       Evita carreras entre dos guardados y permite actualizar una semana ya existente. */
+    /* Una fila por dispositivo, temporada y número de semana. */
     var r=await c.from(TABLE).upsert({
       device_key:DEVICE_KEY,
+      season_key:seasonKey,
       week_no:Number(week.weekNo),
       plan:week,
       updated_at:new Date().toISOString()
-    },{onConflict:'device_key,week_no'});
+    },{onConflict:'device_key,season_key,week_no'});
     if(r.error)throw r.error;
     var history=await fetchHistory();
     setCache(history);
@@ -5388,8 +5445,9 @@ window.esc = window.esc || function(v){
     note('Semana '+n+' cargada desde <b>Supabase</b>.');
   }
   async function clearWeeks(){
-    if(!confirm('¿Vaciar todas las semanas guardadas en Supabase?'))return;
-    var r=await client().from(TABLE).delete().eq('device_key',DEVICE_KEY);
+    if(!confirm('¿Vaciar todas las semanas guardadas de esta temporada? Las demás temporadas no se modificarán.'))return;
+    var seasonKey=window.FPSeasons&&window.FPSeasons.currentKey||'2026-27';
+    var r=await client().from(TABLE).delete().eq('device_key',DEVICE_KEY).eq('season_key',seasonKey);
     if(r.error)throw r.error;
     setCache([]); window.__infantilWeek=null; setWeek(1); redraw([]);
     note('No hay semanas guardadas. La Semana 1 está preparada para generar.');
@@ -5403,6 +5461,19 @@ window.esc = window.esc || function(v){
     if(week){window.__infantilWeek=week;redraw(history);note('Semana '+n+' cargada desde <b>Supabase</b>.');}
     else{window.__infantilWeek=null;redraw(history);note('Semana '+n+' preparada para generar. Pulsa <b>Generar semana</b>.');}
   }
+  window.fcRefreshInfantilSeason=async function(){
+    try{
+      var history=await fetchHistory();
+      setCache(history);
+      var latest=history.reduce(function(max,w){return Number(w.weekNo)>max?Number(w.weekNo):max;},0);
+      setWeek(latest||1);
+      window.__infantilWeek=history.find(function(w){return Number(w.weekNo)===Number(latest);})||null;
+      redraw(history);
+      note(history.length?'Temporada cargada: '+escSeasonName(window.FPSeasons&&window.FPSeasons.currentKey):'Temporada preparada. Genera la Semana 1 para empezar.');
+    }catch(err){console.warn('No se pudo cambiar la temporada infantil:',err);}
+  };
+  function escSeasonName(key){return String(key||'2026-27').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
   function bind(){
     var gen=el('btnGenerateInfantilWeek');
     var save=el('btnSaveInfantilWeek');
@@ -5444,7 +5515,8 @@ window.esc = window.esc || function(v){
     (async function(){
       try{
         var n=Number(week);
-        var r=await client().from(TABLE).delete().eq('device_key',DEVICE_KEY).eq('week_no',n);
+        var seasonKey=window.FPSeasons&&window.FPSeasons.currentKey||'2026-27';
+        var r=await client().from(TABLE).delete().eq('device_key',DEVICE_KEY).eq('season_key',seasonKey).eq('week_no',n);
         if(r.error)throw r.error;
         var history=await fetchHistory();
         setCache(history);
@@ -5488,5 +5560,98 @@ window.esc = window.esc || function(v){
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
 })();
 </script>
+
+<script id="fp-season-manager">
+(function(){
+  'use strict';
+  var REGISTRY_KEY='futuro-carmonense-seasons-v1';
+  var SUPABASE_URL='https://keikpgrkzalzpbtwwqkk.supabase.co';
+  var SUPABASE_PUBLISHABLE_KEY='sb_publishable_vLeJ1aJC09rHRaivaztMSQ_FZeGb0Er';
+  var state={seasons:[],activeKey:'2026-27',currentKey:'2026-27',ready:null};
+  function client(){
+    if(!window.supabase||!window.supabase.createClient)throw new Error('Supabase no está disponible.');
+    return window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{global:{headers:{'x-device-key':REGISTRY_KEY}}});
+  }
+  function label(key){return 'Temporada '+String(key||'2026-27').replace('-','-');}
+  function sortSeasons(){state.seasons.sort(function(a,b){return String(b.season_key).localeCompare(String(a.season_key));});}
+  function renderControls(){
+    ['fpSeasonSelectGenerator','fpSeasonSelectInfantil'].forEach(function(id){
+      var select=document.getElementById(id);if(!select)return;
+      select.innerHTML='';
+      state.seasons.forEach(function(s){var o=document.createElement('option');o.value=s.season_key;o.textContent=s.season_name+(s.is_active?' · Activa':'');select.appendChild(o);});
+      select.value=state.currentKey;
+      select.onchange=function(){setCurrent(select.value);};
+    });
+  }
+  async function load(){
+    var c=client();
+    var r=await c.from('training_seasons').select('season_key,season_name,is_active,created_at').eq('device_key',REGISTRY_KEY).order('season_key',{ascending:false});
+    if(r.error)throw r.error;
+    state.seasons=r.data||[];
+    if(!state.seasons.some(function(s){return s.season_key==='2026-27';})){
+      var ins=await c.from('training_seasons').insert({device_key:REGISTRY_KEY,season_key:'2026-27',season_name:'Temporada 26-27',is_active:true});
+      if(ins.error)throw ins.error;
+      var again=await c.from('training_seasons').select('season_key,season_name,is_active,created_at').eq('device_key',REGISTRY_KEY).order('season_key',{ascending:false});
+      if(again.error)throw again.error;state.seasons=again.data||[];
+    }
+    sortSeasons();
+    var active=state.seasons.find(function(s){return s.is_active;})||state.seasons[0];
+    if(active){state.activeKey=active.season_key;state.currentKey=active.season_key;}
+    renderControls();applyInfantilDates(state.currentKey);
+    return state.seasons;
+  }
+  function setCurrent(key){
+    if(!state.seasons.some(function(s){return s.season_key===key;}))return;
+    state.currentKey=key;renderControls();applyInfantilDates(key);
+    if(typeof window.refreshSeniorHistory==='function')window.refreshSeniorHistory();
+    if(typeof window.fcRefreshInfantilSeason==='function')window.fcRefreshInfantilSeason();
+  }
+  function applyInfantilDates(key){
+    var startYear=Number(String(key||'2026-27').slice(0,4));if(!Number.isFinite(startYear))startYear=2026;
+    // Inicio el martes de la última semana de agosto y cierre al final de mayo.
+    var start=new Date(startYear,7,25,12),end=new Date(startYear+1,4,30,12);
+    while(start.getDay()!==2)start.setDate(start.getDate()+1);
+    var startISO=start.getFullYear()+'-'+String(start.getMonth()+1).padStart(2,'0')+'-'+String(start.getDate()).padStart(2,'0');
+    var endISO=end.getFullYear()+'-'+String(end.getMonth()+1).padStart(2,'0')+'-'+String(end.getDate()).padStart(2,'0');
+    var a=document.getElementById('seasonStart'),b=document.getElementById('seasonEnd');if(a)a.value=startISO;if(b)b.value=endISO;
+    if(typeof window.FPSetInfantilSeasonDates==='function')window.FPSetInfantilSeasonDates(startISO,endISO);
+  }
+  async function startNewSeason(){
+    try{
+      await state.ready;
+      var activeYear=Number(String(state.activeKey||'2026-27').slice(0,4));
+      var newKey=(activeYear+1)+'-'+String((activeYear+2)%100).padStart(2,'0');
+      if(state.seasons.some(function(s){return s.season_key===newKey;})){
+        if(!confirm('La '+label(newKey)+' ya existe. ¿Quieres activarla como temporada actual?'))return;
+        var existingClient=client();
+        var disableExisting=await existingClient.from('training_seasons').update({is_active:false}).eq('device_key',REGISTRY_KEY);
+        if(disableExisting.error)throw disableExisting.error;
+        var enableExisting=await existingClient.from('training_seasons').update({is_active:true}).eq('device_key',REGISTRY_KEY).eq('season_key',newKey);
+        if(enableExisting.error)throw enableExisting.error;
+        state.seasons=state.seasons.map(function(s){return Object.assign({},s,{is_active:s.season_key===newKey});});
+        state.activeKey=newKey;setCurrent(newKey);return;
+      }
+      if(!confirm('¿Empezar la '+label(newKey)+'?\n\nLas sesiones y semanas de las temporadas anteriores se conservarán. La nueva temporada empezará sin sesiones ni semanas.'))return;
+      var c=client();
+      var ins=await c.from('training_seasons').insert({device_key:REGISTRY_KEY,season_key:newKey,season_name:label(newKey),is_active:false});
+      if(ins.error)throw ins.error;
+      var off=await c.from('training_seasons').update({is_active:false}).eq('device_key',REGISTRY_KEY);
+      if(off.error)throw off.error;
+      var on=await c.from('training_seasons').update({is_active:true}).eq('device_key',REGISTRY_KEY).eq('season_key',newKey);
+      if(on.error)throw on.error;
+      state.seasons=state.seasons.map(function(s){return Object.assign({},s,{is_active:false});});
+      state.seasons.push({season_key:newKey,season_name:label(newKey),is_active:true,created_at:new Date().toISOString()});
+      state.activeKey=newKey;state.currentKey=newKey;sortSeasons();renderControls();applyInfantilDates(newKey);
+      if(typeof window.refreshSeniorHistory==='function')await window.refreshSeniorHistory();
+      if(typeof window.fcRefreshInfantilSeason==='function')await window.fcRefreshInfantilSeason();
+      var week=document.getElementById('seasonWeek');if(week)week.value='1';
+      alert(label(newKey)+' creada. Ya puedes empezar a guardar sesiones y semanas en ella.');
+    }catch(e){console.error(e);alert('No se pudo crear la temporada.\n\n'+(e&&e.message?e.message:String(e)));}
+  }
+  state.ready=load().catch(function(e){console.error('No se pudieron cargar las temporadas:',e);return [];});
+  window.FPSeasons={get seasons(){return state.seasons.slice();},get activeKey(){return state.activeKey;},get currentKey(){return state.currentKey;},get ready(){return state.ready;},setCurrent:setCurrent,startNewSeason:startNewSeason};
+})();
+</script>
+
 </body>
 </html>
