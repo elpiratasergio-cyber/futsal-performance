@@ -528,6 +528,13 @@ header .inner,.wrap{width:100%}
 .fc-manual-modal input,.fc-manual-modal textarea{width:100%;box-sizing:border-box;border:1px solid #ccd8d2;border-radius:10px;padding:10px;font:inherit}
 .fc-manual-preview{margin-top:10px;min-height:60px;background:#f5f8f6;border-radius:10px;padding:10px;text-align:center;color:#6a7d73}
 .fc-manual-preview img{max-width:100%;max-height:180px;border-radius:8px}
+.fc-library-picker{display:none;margin-top:10px;padding:10px;border:1px solid #d9e4de;border-radius:12px;background:#f8fbf9}
+.fc-library-picker.is-open{display:block}
+.fc-library-picker input{margin-bottom:8px}
+.fc-library-list{max-height:230px;overflow:auto;display:grid;gap:6px}
+.fc-library-option{width:100%;text-align:left;border:1px solid #d8e2dc;background:#fff;border-radius:9px;padding:9px 10px;cursor:pointer;color:#173f31}
+.fc-library-option b{display:block;font-size:13px}.fc-library-option small{display:block;color:#687a70;margin-top:3px}
+.fc-library-picked{font-size:12px;color:#17633e;font-weight:800;margin-top:6px}
 .fc-manual-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
 .fc-manual-actions button{padding:10px 14px;border-radius:10px;border:1px solid #ccd8d2;cursor:pointer;font-weight:800}
 .fc-manual-image-details{margin-top:10px}
@@ -3528,8 +3535,15 @@ async function syncExercisesFromSupabase(){
       return;
     }
     const custom=getCustomExercises();
+    // Conserva primero el banco local completo. Supabase actualiza los IDs que
+    // conoce, pero nunca hace desaparecer ejercicios locales que aún no estén
+    // publicados en `ejercicios` (por ejemplo, el ID 73). Las activaciones y los
+    // ejercicios propios mantienen prioridad al final, como en la versión previa.
+    const localBank=EX.slice();
     const byId=new Map();
-    [...data.map(mapDbExercise),...ACTIVATION_EXERCISES,...custom].forEach(x=>byId.set(Number(x.id),x));
+    [...localBank,...data.map(mapDbExercise),...ACTIVATION_EXERCISES,...custom].forEach(x=>{
+      if(x && Number.isFinite(Number(x.id))) byId.set(Number(x.id),x);
+    });
     EX.splice(0,EX.length,...byId.values());
     rebuildFilterOptions();
     renderDbCards();
@@ -4622,8 +4636,7 @@ window.esc = window.esc || function(v){
   }
 
   function allExercises(){
-    // EX y GAMES viven en este mismo <script> como const; no dependen de window.
-    // Usarlos directamente evita que el generador caiga en "Tarea contextual".
+    // Catálogo compartido por Temporada Infantil: banco EX + juegos GAMES.
     let pool=[];
     try{pool=pool.concat(A(EX||[]))}catch(e){}
     try{pool=pool.concat(A(GAMES||[]).map(x=>({...x,cat:x.cat||'Juego'})))}catch(e){}
@@ -4635,6 +4648,10 @@ window.esc = window.esc || function(v){
       seen.add(k);return true;
     });
   }
+  // Puente seguro para el selector manual del plan infantil.
+  window.__fcGetExerciseCatalog=function(){
+    return allExercises().slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
+  };
 
   // Clasificación específica para Temporada Infantil.
   // Un ejercicio técnico-táctico debe combinar una acción técnica con una
@@ -4643,18 +4660,24 @@ window.esc = window.esc || function(v){
   function isTechnicalTactical(e){
     const t=n([e.name,e.objective,e.execution,e.type,e.cat,e.category].join(' '));
     const technical=[
-      'pase','control','recepcion','recepción','conduccion','conducción','regate',
-      'pared','tiro','finaliz','remate','desmarque','balon','balón','primer toque'
+      'pase','control','control orientado','recepcion','conduccion','regate','finta',
+      'pared','tiro','finaliz','remate','desmarque','balon','primer toque','perfil corporal',
+      'proteccion del balon','golpeo','conservacion','interceptacion','pase filtrado','pase al espacio'
     ];
-    const tactical=[
-      '1x1','1 vs 1','duelo','2x1','2 vs 1','2x2','2 vs 2','3x2','3 vs 2','3x3','3 vs 3','4x4','4 vs 4',
-      'superioridad','inferioridad','oposicion','oposición','defensor','defensores','rival',
-      'presion','presión','repliegue','transicion','transición','contraataque','cobertura','ayuda defensiva',
-      'salida de presion','salida de presión','toma de decisiones','decision','decisión','espacios','amplitud','profundidad',
-      'rotacion','rotación','tercer hombre','apoyo','linea de pase','línea de pase','juego reducido','zona de finalizacion','zona de finalización'
+    const tacticalStrong=[
+      '1x1','1 vs 1','1 contra 1','duelo','2x1','2 vs 1','2 contra 1','2x2','2 vs 2','3x2','3 vs 2','3x3','3 vs 3','4x4','4 vs 4',
+      'superioridad','inferioridad','oposicion','defensor','defensores','rival','marcaje','cobertura','basculacion',
+      'presion','repliegue','transicion','contraataque','ayuda defensiva','salida de presion','toma de decisiones',
+      'decision','juego reducido','zona de finalizacion','ataque-defensa','defensa-ataque','presion tras perdida',
+      'recuperacion','temporizacion','bloque defensivo','linea defensiva'
     ];
+    const tacticalSupport=['espacios','amplitud','profundidad','rotacion','tercer hombre','apoyo','linea de pase'];
     const hasTechnical=technical.some(k=>t.includes(n(k)));
-    const hasTactical=tactical.some(k=>t.includes(n(k)));
+    const hasStrongTactical=tacticalStrong.some(k=>t.includes(n(k)));
+    const hasSupportCue=tacticalSupport.some(k=>t.includes(n(k)));
+    const hasTactical=hasStrongTactical || (hasSupportCue && /(oposicion|defensor|rival|presion|transicion|superioridad|inferioridad|decision|juego reducido|1x1|1 vs 1|2x1|2 vs 1|2x2|3x2|3x3)/.test(t));
+    // Evita que una tarea de técnica analítica entre solo por mencionar "pase";
+    // exigimos además un indicador táctico contextual en el mismo ejercicio.
     return hasTechnical && hasTactical;
   }
 
@@ -5075,12 +5098,19 @@ window.esc = window.esc || function(v){
     if(!row||row.block==='match'||row.block==='mobility')return;
 
     const old=document.getElementById('fcManualModal'); if(old)old.remove();
+    window.__fcManualSelectedExercise=null;
     const modal=document.createElement('div');
     modal.id='fcManualModal';
     modal.className='fc-manual-overlay';
     modal.innerHTML=`
       <div class="fc-manual-modal">
-        <div class="fc-manual-head"><strong>✏️ Cambiar ejercicio manualmente</strong><button onclick="document.getElementById('fcManualModal').remove()">✕</button></div>
+        <div class="fc-manual-head"><strong>✏️ Cambiar ejercicio</strong><button onclick="window.__fcManualSelectedExercise=null;document.getElementById('fcManualModal').remove()">✕</button></div>
+        <button type="button" class="week-exchange" onclick="fcToggleLibraryPicker()">📚 Elegir ejercicio del catálogo</button>
+        <div id="fcLibraryPicker" class="fc-library-picker">
+          <input id="fcLibrarySearch" placeholder="Buscar por nombre, categoría u objetivo…" oninput="fcFilterLibraryPicker()">
+          <div id="fcLibraryList" class="fc-library-list"></div>
+          <div id="fcLibraryPicked" class="fc-library-picked"></div>
+        </div>
         <label>Nombre del ejercicio</label>
         <input id="fcManualName" value="${esc(row.name||'')}" placeholder="Ej.: Rondo 4x1 + salida">
         <label>Objetivo</label>
@@ -5098,6 +5128,29 @@ window.esc = window.esc || function(v){
     document.body.appendChild(modal);
   };
 
+  window.fcToggleLibraryPicker=function(){
+    const panel=document.getElementById('fcLibraryPicker');if(!panel)return;
+    panel.classList.toggle('is-open');
+    if(panel.classList.contains('is-open')){window.fcFilterLibraryPicker();document.getElementById('fcLibrarySearch')?.focus();}
+  };
+  window.fcFilterLibraryPicker=function(){
+    const list=document.getElementById('fcLibraryList');if(!list)return;
+    const q=(document.getElementById('fcLibrarySearch')?.value||'').trim().toLocaleLowerCase('es');
+    const catalog=typeof window.__fcGetExerciseCatalog==='function'?window.__fcGetExerciseCatalog():[];
+    const matches=catalog.filter(e=>[e.name,e.cat,e.category,e.type,e.objective,e.execution,e.material].join(' ').toLocaleLowerCase('es').includes(q)).slice(0,120);
+    list.innerHTML=matches.map(e=>'<button type="button" class="fc-library-option" onclick="fcSelectLibraryExercise('+Number(e.id)+')"><b>'+esc(e.name)+'</b><small>'+esc(e.cat||e.category||'Sin categoría')+' · '+esc(e.objective||e.type||'')+(e.custom?' · ⭐ Propio':'')+'</small></button>').join('')||'<div class="empty" style="display:block">No hay ejercicios que coincidan.</div>';
+  };
+  window.fcSelectLibraryExercise=function(id){
+    const catalog=typeof window.__fcGetExerciseCatalog==='function'?window.__fcGetExerciseCatalog():[];
+    const e=catalog.find(x=>Number(x.id)===Number(id));if(!e)return;
+    window.__fcManualSelectedExercise={...e};
+    const name=document.getElementById('fcManualName'),objective=document.getElementById('fcManualObjective'),desc=document.getElementById('fcManualDesc');
+    if(name)name.value=e.name||'';
+    if(objective)objective.value=e.objective||'';
+    if(desc)desc.value=e.execution||e.desc||'';
+    const picked=document.getElementById('fcLibraryPicked');if(picked)picked.textContent='Seleccionado: '+(e.name||'Ejercicio')+' · al guardar quedará asociado a esta tarea.';
+  };
+
   window.fcSaveManualExercise=function(week,si,ri){
     const hist=load(), w=hist.find(x=>Number(x.weekNo)===Number(week));
     if(!w||!w.sessions[si])return;
@@ -5109,23 +5162,39 @@ window.esc = window.esc || function(v){
 
     if(!name){alert('Escribe el nombre del ejercicio.');return;}
     const finish=function(img){
+      const selected=window.__fcManualSelectedExercise;
       row.name=name;
       row.objective=objective||'Aplicación del contenido';
       row.desc=desc||'Realizar el ejercicio según las indicaciones.';
-      row.exercise=row.exercise||{};
-      row.exercise.name=row.name;
-      row.exercise.objective=row.objective;
-      row.exercise.execution=row.desc;
-      row.exercise.manual=true;
-      if(img){row.manualImage=img;row.exercise.manualImage=img;}
+      if(selected){
+        row.exercise={...selected,name:row.name,objective:row.objective,execution:row.desc};
+        row.libraryExerciseId=Number(selected.id);
+        row.manualImage=img||null;
+        if(img)row.exercise.manualImage=img;else delete row.exercise.manualImage;
+      }else{
+        row.exercise=row.exercise||{};
+        row.exercise.name=row.name;
+        row.exercise.objective=row.objective;
+        row.exercise.execution=row.desc;
+        row.exercise.manual=true;
+        delete row.libraryExerciseId;
+        if(img){row.manualImage=img;row.exercise.manualImage=img;}
+      }
       document.getElementById('fcManualModal')?.remove();
+      window.__fcManualSelectedExercise=null;
       save(hist);window.__infantilWeek=w;render(hist,{preserve:true});
+      if(typeof window.fcPersistInfantilWeek==='function'){
+        window.fcPersistInfantilWeek(w).catch(function(err){
+          console.warn('No se pudo guardar el cambio manual en Supabase:',err);
+          alert('El cambio se ha aplicado en pantalla, pero no se ha podido guardar en Supabase.\n\n'+(err&&err.message?err.message:String(err)));
+        });
+      }
     };
     if(file){
       const reader=new FileReader();
       reader.onload=function(){finish(reader.result)};
       reader.readAsDataURL(file);
-    }else finish(row.manualImage||null);
+    }else finish(window.__fcManualSelectedExercise ? null : (row.manualImage||null));
   };
 
   window.fcRebuildDelete=function(week){
