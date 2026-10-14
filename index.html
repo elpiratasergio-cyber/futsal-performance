@@ -3527,7 +3527,11 @@ function renderDbCards(){
 async function syncExercisesFromSupabase(){
   try{
     if(!window.supabase?.createClient) return;
-    const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+    // Usa la misma clave de espacio compartido que el formulario de ejercicios propios.
+    // Las políticas RLS pueden ocultar los ejercicios personalizados si se consulta sin ella.
+    const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{
+      global:{headers:{'x-device-key':FP_SHARED_WORKSPACE_KEY}}
+    });
     const {data,error}=await client.from('ejercicios').select('id,nombre,categoria,tipo,balon,intensidad,jugadores,dosis,objetivo,ejecucion,material,modo,video_url,youtube_search_url,visual_config,activo,es_personal,device_key,foto_url').eq('activo',true).order('id');
     if(error) throw error;
     if(!Array.isArray(data)||data.length===0){
@@ -4643,8 +4647,10 @@ window.esc = window.esc || function(v){
     const seen=new Set();
     return pool.filter(e=>{
       if(!e||!e.name)return false;
-      const k=keyExercise(e);
-      if(!k||seen.has(k))return false;
+      // Deduplicar por ID; no agrupar por nombre/familia, porque eso puede ocultar
+      // ejercicios propios que comparten título o familia con otro ejercicio.
+      const k=(e.id!=null && Number.isFinite(Number(e.id)))?'id:'+String(Number(e.id)):'name:'+String(e.name).trim().toLocaleLowerCase('es');
+      if(seen.has(k))return false;
       seen.add(k);return true;
     });
   }
@@ -4748,9 +4754,19 @@ window.esc = window.esc || function(v){
 
   // Visual scheme generated from the actual title + description, not just the block.
   function scheme(row){
-    // Esquema contextual: interpreta nombre + objetivo + ejecución + montaje/material
-    // para representar la dinámica real de la tarea, no solo el bloque semanal.
+    // Si la tarea procede del catálogo, reutiliza exactamente el motor visual de la pestaña 1.
+    // Así el esquema de Infantil coincide con el que se ve en la ficha del ejercicio.
     const e=row&&row.exercise&&typeof row.exercise==='object'?row.exercise:{};
+    if(e && e.id!=null && !e.manual){
+      const visualExercise=e.source&&typeof e.source==='object'?e.source:e;
+      const visual=(visualExercise.custom && visualExercise.photo)
+        ? '<img class="custom-photo" src="'+esc(visualExercise.photo)+'" alt="'+esc(visualExercise.name||row.name||'Ejercicio')+'">'
+        : renderExerciseDiagram(visualExercise);
+      const title=String(row?.name||visualExercise.name||e.name||'Ejercicio');
+      return '<details class="fc-rebuild-scheme"><summary>▼ Ver esquema visual</summary>'+visual+
+        '<div class="scheme-key"><span>🔵 Jugador</span><span>🟢 Trayectoria</span><span>⚪ Balón</span><span>🔴 Oposición</span><span>🟠 Cono</span><span>🟣 Pase</span></div></details>';
+    }
+    // Para ejercicios manuales sin vínculo al catálogo, conserva el esquema contextual.
     const name=String(row?.name||e.name||'Ejercicio');
     const objective=String(row?.objective||e.objective||'');
     const execution=String(row?.desc||e.execution||e.desc||'');
