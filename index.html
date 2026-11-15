@@ -666,6 +666,7 @@ window.switchMainTab = window.switchMainTab || function(tab){
     <button class="custom-btn" onclick="openCustomExerciseForm()">＋ Añadir mi ejercicio</button>
   </div>
   <div id="customExerciseStatus" class="history-status"></div>
+  <div id="customExerciseManager" class="custom-exercise-manager"></div>
 </section>
 
 <section class="panel"><div class="filters"><input id="search" placeholder="Buscar ejercicio, objetivo, material..." oninput="filterCards()">
@@ -3221,15 +3222,35 @@ function setCustomStatus(msg,error=false){
   const el=document.getElementById('customExerciseStatus');
   if(el){el.textContent=msg;el.style.color=error?'#b91c1c':'#64756e'}
 }
-function openCustomExerciseForm(){
-  customCategoryOptions();
-  document.getElementById('customExerciseModal').classList.add('show');
-  document.getElementById('customExerciseForm')?.reset();
-  document.getElementById('ceGenerator').checked=true;
+function openCustomExerciseForm(id=null){
+  const form=document.getElementById('customExerciseForm');
+  form?.reset();
+  document.getElementById('ceEditId').value='';
+  document.getElementById('cePhoto').required=true;
   document.getElementById('cePhotoPreview').style.display='none';
+  document.querySelector('#customExerciseModal .custom-form-head h2').textContent='📸 Añadir ejercicio propio';
+  document.querySelector('#customExerciseForm button[type=submit]').textContent='💾 Guardar ejercicio';
   customCategoryOptions();
+  if(id!==null){
+    const x=EX.find(e=>Number(e.id)===Number(id)&&e.custom); if(!x)return;
+    document.getElementById('ceEditId').value=String(x.id);
+    const fields={ceName:x.name,ceCat:x.cat,ceType:x.type,ceMode:x.mode,ceBall:x.ball,ceIntensity:x.intensity,cePlayers:x.players,ceDose:x.dose,ceObjective:x.objective,ceExecution:x.execution,ceMaterial:x.material,ceYoutube:x.youtube||''};
+    Object.entries(fields).forEach(([k,v])=>{const el=document.getElementById(k);if(el)el.value=v??''});
+    document.getElementById('ceGenerator').checked=x.useInGenerator!==false;
+    document.getElementById('cePhoto').required=false;
+    if(x.photo){const img=document.getElementById('cePhotoPreview');img.src=x.photo;img.style.display='block'}
+    document.querySelector('#customExerciseModal .custom-form-head h2').textContent='✏️ Modificar ejercicio propio';
+    document.querySelector('#customExerciseForm button[type=submit]').textContent='💾 Guardar cambios';
+  }else document.getElementById('ceGenerator').checked=true;
+  document.getElementById('customExerciseModal').classList.add('show');
 }
 function closeCustomExerciseForm(){document.getElementById('customExerciseModal').classList.remove('show')}
+function renderCustomExerciseManager(){
+  const root=document.getElementById('customExerciseManager');if(!root)return;
+  const items=EX.filter(x=>x.custom||x.es_personal).slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),'es'));
+  if(!items.length){root.innerHTML='<p class="custom-help">Todavía no has añadido ejercicios propios.</p>';return}
+  root.innerHTML='<div class="custom-manager-head"><b>Mis ejercicios guardados ('+items.length+')</b><span>Modifica sus datos o cambia su categoría</span></div>'+items.map(x=>'<div class="custom-manager-row"><div class="custom-manager-info">'+(x.photo?'<img src="'+escHTML(x.photo)+'" alt="">':'')+'<div><b>'+escHTML(x.name)+'</b><small>'+escHTML(x.cat||'Mis ejercicios')+' · '+escHTML(x.type||'Ejercicio propio')+'</small></div></div><div class="custom-manager-actions"><button type="button" class="light" onclick="openCustomExerciseForm('+Number(x.id)+')">✏️ Modificar</button><button type="button" class="custom-delete" onclick="deleteCustomExercise('+Number(x.id)+')">🗑</button></div></div>').join('');
+}
 function previewCustomPhoto(ev){
   const file=ev.target.files?.[0],img=document.getElementById('cePhotoPreview');
   if(!file||!img)return;
@@ -3253,51 +3274,39 @@ function compressCustomPhoto(file){
 }
 async function saveCustomExercise(ev){
   ev.preventDefault();
+  const editId=Number(document.getElementById('ceEditId').value||0);
+  const existing=editId?EX.find(e=>Number(e.id)===editId&&e.custom):null;
   const file=document.getElementById('cePhoto').files?.[0];
-  if(!file){setCustomStatus('Selecciona una foto.',true);return}
+  if(!existing&&!file){setCustomStatus('Selecciona una foto.',true);return}
   try{
-    const photo=await compressCustomPhoto(file);
-    const id=-Date.now();
+    const photo=file?await compressCustomPhoto(file):(existing?.photo||null);
+    const id=existing?existing.id:-(Date.now());
     const x={
-      id,name:document.getElementById('ceName').value.trim(),cat:document.getElementById('ceCat').value||'Mis ejercicios',
+      ...(existing||{}),id,name:document.getElementById('ceName').value.trim(),cat:document.getElementById('ceCat').value||'Mis ejercicios',
       type:document.getElementById('ceType').value.trim()||'Ejercicio propio',ball:document.getElementById('ceBall').value,
       intensity:document.getElementById('ceIntensity').value,players:document.getElementById('cePlayers').value.trim()||'4-16',
       dose:document.getElementById('ceDose').value.trim()||'10 min',objective:document.getElementById('ceObjective').value.trim()||'Trabajo específico',
       execution:document.getElementById('ceExecution').value.trim()||'Realizar según la referencia visual.',material:document.getElementById('ceMaterial').value.trim()||'Sin especificar',
       mode:document.getElementById('ceMode').value,youtube:document.getElementById('ceYoutube').value.trim()||null,youtube_search:null,
-      photo,custom:true,useInGenerator:document.getElementById('ceGenerator').checked,visual_config:{}
+      photo,custom:true,useInGenerator:document.getElementById('ceGenerator').checked,visual_config:existing?.visual_config||{}
     };
-
-    const payload={
-      id,name:x.name,category:x.cat,type:x.type,ball:x.ball,intensity:x.intensity,players:x.players,
-      dose:x.dose,objective:x.objective,execution:x.execution,material:x.material,mode:x.mode,
-      youtube:x.youtube,youtube_search:x.youtube_search,visual_config:x.visual_config,active:true,
-      custom:true,use_in_generator:x.useInGenerator,photo:x.photo,device_key:FP_SHARED_WORKSPACE_KEY
-    };
-
     const c=customExercisesClient();
-    if(c){
-      const {data,error}=await c.from('ejercicios').insert({
-        id:payload.id,nombre:payload.name,categoria:payload.category,tipo:payload.type,balon:payload.ball,
-        intensidad:payload.intensity,jugadores:payload.players,dosis:payload.dose,objetivo:payload.objective,
-        ejecucion:payload.execution,material:payload.material,modo:payload.mode,video_url:payload.youtube,
-        youtube_search_url:payload.youtube_search,visual_config:payload.visual_config,activo:true,
-        es_personal:true,device_key:FP_SHARED_WORKSPACE_KEY,foto_url:payload.photo
-      }).select('id,nombre,categoria,tipo,balon,intensidad,jugadores,dosis,objetivo,ejecucion,material,modo,video_url,youtube_search_url,visual_config,activo,es_personal,device_key,foto_url').single();
-      if(error) throw error;
-      x.id=Number(data.id);
+    if(!c)throw new Error('No hay conexión con Supabase. No se han guardado los cambios.');
+    const payload={nombre:x.name,categoria:x.cat,tipo:x.type,balon:x.ball,intensidad:x.intensity,jugadores:x.players,dosis:x.dose,objetivo:x.objective,ejecucion:x.execution,material:x.material,modo:x.mode,video_url:x.youtube,youtube_search_url:null,visual_config:x.visual_config||{},activo:true,es_personal:true,device_key:FP_SHARED_WORKSPACE_KEY,foto_url:x.photo};
+    let result;
+    if(existing){
+      result=await c.from('ejercicios').update(payload).eq('id',Number(existing.id)).eq('es_personal',true).select('id').maybeSingle();
+    }else{
+      result=await c.from('ejercicios').insert(payload).select('id').single();
     }
-
-    const all=[...getCustomExercises(),x];saveCustomExercises(all);
-    if(!EX.some(e=>e.id===x.id))EX.push(x);
-    rebuildFilterOptions();renderDbCards();customCategoryOptions();
-    closeCustomExerciseForm();
-    setCustomStatus(`Guardado en Supabase: ${x.name}`);
+    if(result.error)throw result.error;
+    if(!result.data?.id)throw new Error('Supabase no confirmó el guardado. Comprueba los permisos de modificación.');
+    x.id=Number(result.data.id);
+    const i=EX.findIndex(e=>Number(e.id)===Number(x.id));if(i>=0)EX[i]=x;else EX.push(x);
+    rebuildFilterOptions();renderDbCards();renderCustomExerciseManager();refreshExerciseDiagrams();
+    closeCustomExerciseForm();setCustomStatus(existing?'Cambios guardados en Supabase.':'Ejercicio guardado en Supabase.');
     document.getElementById('count').textContent=EX.length;
-  }catch(err){
-    console.error(err);
-    setCustomStatus(`No se pudo guardar el ejercicio. ${err?.message||err}`,true);
-  }
+  }catch(err){console.error(err);setCustomStatus('No se pudo guardar el ejercicio. '+(err?.message||err),true)}
 }
 async function deleteCustomExercise(id){
   const x=EX.find(e=>e.id==id);if(!x?.custom)return;
@@ -3310,7 +3319,7 @@ async function deleteCustomExercise(id){
     }
     saveCustomExercises(getCustomExercises().filter(e=>e.id!=id));
     const i=EX.findIndex(e=>e.id==id);if(i>=0)EX.splice(i,1);
-    rebuildFilterOptions();renderDbCards();setCustomStatus('Ejercicio eliminado de Supabase.');
+    rebuildFilterOptions();renderDbCards();renderCustomExerciseManager();setCustomStatus('Ejercicio eliminado de Supabase.');
   }catch(err){
     console.error(err);setCustomStatus(`No se pudo eliminar el ejercicio. ${err?.message||err}`,true);
   }
@@ -3318,6 +3327,8 @@ async function deleteCustomExercise(id){
 // Catálogo compartido: clasificación común para ambos generadores y selectores.
 function fpNorm(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
 function fpExerciseGroup(e){
+  const assigned=String(e?.cat||e?.category||'').trim();
+  if((e?.custom===true||e?.es_personal===true)&&FP_EXERCISE_GROUPS.includes(assigned)&&assigned!=='Mis ejercicios')return assigned;
   const t=fpNorm([e.name,e.objective,e.execution,e.type,e.cat,e.category].join(' '));
   const raw=fpNorm(e.cat||e.category||'');
   if(/movilidad|calentamiento articular|flexibilidad/.test(t)||/movilidad/.test(raw)) return 'Movilidad y preparación';
@@ -3334,7 +3345,7 @@ function fpExerciseGroup(e){
   return 'Circuitos técnicos';
 }
 const FP_EXERCISE_GROUPS=['Movilidad y preparación','Activación sin balón','Activación con balón y minijuegos','Velocidad, reacción y cambios de dirección','Fuerza y prevención','Posesión y rondos','Circuitos técnicos','Finalización','Técnico-táctico y transiciones','Juegos reducidos','Mis ejercicios'];
-function fpDisplayGroup(e){return (e.custom===true||e.es_personal===true)?'Mis ejercicios':fpExerciseGroup(e);}
+function fpDisplayGroup(e){const cat=String(e.cat||e.category||'').trim();return (e.custom===true||e.es_personal===true)?(FP_EXERCISE_GROUPS.includes(cat)?cat:'Mis ejercicios'):fpExerciseGroup(e);}
 function fpGroupForBlock(block){return ({minigame:['Activación con balón y minijuegos','Activación sin balón','Velocidad, reacción y cambios de dirección'],possession:['Posesión y rondos'],finishing:['Finalización'],technicalTactical:['Técnico-táctico y transiciones','Juegos reducidos']})[block]||[];}
 function customVisual(x){return x.photo?`<img class="custom-photo" src="${x.photo}" alt="${escHTML(x.name)}">`:renderExerciseDiagram(x)}
 let session=[];function uniq(a){return [...new Set(a)].sort()}function fill(id,vals){const e=document.getElementById(id);vals.forEach(v=>{let o=document.createElement('option');o.value=v;o.textContent=v;e.appendChild(o)})}
@@ -3620,6 +3631,7 @@ async function syncExercisesFromSupabase(){
     EX.splice(0,EX.length,...byId.values());
     rebuildFilterOptions();
     renderDbCards();
+    renderCustomExerciseManager();
     refreshExerciseDiagrams();
     document.documentElement.dataset.dataSource='supabase';
   }catch(err){
@@ -3631,6 +3643,7 @@ window.addEventListener('load',syncExercisesFromSupabase);
 window.addEventListener('load',()=>{
   mergeCustomExercises();
   customCategoryOptions();
+  renderCustomExerciseManager();
 });
 
 
@@ -4135,6 +4148,7 @@ window.addEventListener('load',()=>{
   <div class="custom-form-card">
     <div class="custom-form-head"><div><h2>📸 Añadir ejercicio propio</h2><p class="custom-help">La foto será la referencia visual principal del ejercicio.</p></div><button class="light" onclick="closeCustomExerciseForm()">✕</button></div>
     <form id="customExerciseForm" class="custom-form" onsubmit="saveCustomExercise(event)">
+      <input type="hidden" id="ceEditId">
       <div class="custom-form-grid">
         <div><label>Nombre *</label><input id="ceName" required placeholder="Ej. Sprint 5 m + frenada con estímulo"></div>
         <div><label>Categoría</label><select id="ceCat"></select></div>
@@ -4642,6 +4656,8 @@ window.esc = window.esc || function(v){
   .fc-title-right .fc-exercise-actions{flex-wrap:wrap;justify-content:flex-end}
 }
 .fc-rebuild-change{margin-top:8px;margin-bottom:7px;display:flex;width:max-content}.fc-rebuild-details{margin-top:0}.fc-rebuild-day-title{font-size:38px}.fc-rebuild-day-date{font-size:18px}@media(max-width:650px){.fc-rebuild-day-title{font-size:30px;padding:16px 18px}.fc-rebuild-day-date{font-size:15px}}
+
+.custom-exercise-manager{margin-top:14px;display:grid;gap:8px}.custom-manager-head{display:flex;justify-content:space-between;gap:10px;align-items:center;color:#17352a;font-size:13px}.custom-manager-head span{color:#718078;font-size:12px}.custom-manager-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 11px;border:1px solid #dce9e1;border-radius:12px;background:#fff}.custom-manager-info{display:flex;align-items:center;gap:10px;min-width:0}.custom-manager-info img{width:46px;height:46px;object-fit:cover;border-radius:8px}.custom-manager-info div{display:grid;gap:3px;min-width:0}.custom-manager-info b{font-size:13px}.custom-manager-info small{font-size:11px;color:#718078}.custom-manager-actions{display:flex;gap:6px;flex-shrink:0}.custom-manager-actions button{padding:7px 10px}@media(max-width:600px){.custom-manager-head{align-items:flex-start;flex-direction:column}.custom-manager-row{align-items:flex-start}.custom-manager-actions{flex-direction:column}}
 </style>
 <script id="fc-infantil-rebuild">
 (function(){
