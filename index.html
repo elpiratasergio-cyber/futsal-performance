@@ -3204,7 +3204,8 @@ function customExercisesClient(){
 function customCategoryOptions(){
   const el=document.getElementById('ceCat'); if(!el)return;
   const current=el.value;
-  el.innerHTML='<option value="Mis ejercicios">Mis ejercicios</option>'+uniq(EX.map(x=>x.cat).filter(Boolean)).map(v=>`<option value="${escHTML(v)}">${escHTML(v)}</option>`).join('');
+  const groups=['Mis ejercicios',...FP_EXERCISE_GROUPS.filter(x=>x!=='Mis ejercicios')];
+  el.innerHTML=groups.map(v=>`<option value="${escHTML(v)}">${escHTML(v)}</option>`).join('');
   if(current && [...el.options].some(o=>o.value===current))el.value=current;
 }
 function mergeCustomExercises(){
@@ -3567,8 +3568,9 @@ function mapDbExercise(r){return {
 function rebuildFilterOptions(){
   [['cat','cat'],['type','type'],['ball','ball'],['intensity','intensity'],['playersFilter','players']].forEach(([id,key])=>{
     const el=document.getElementById(id); if(!el)return; const current=el.value;
-    el.innerHTML='<option value="">Todos</option>';
-    fill(id,uniq(EX.filter(x=>!x.legacy).map(x=>x[key]).filter(Boolean)));
+    el.innerHTML='<option value="">'+(id==='cat'?'Todas las categorías':'Todos')+'</option>';
+    const values=id==='cat'?FP_EXERCISE_GROUPS:uniq(EX.filter(x=>!x.legacy).map(x=>x[key]).filter(Boolean));
+    values.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;el.appendChild(o)});
     if([...el.options].some(o=>o.value===current))el.value=current;
   });
 }
