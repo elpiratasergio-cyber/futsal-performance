@@ -553,7 +553,7 @@ header .inner,.wrap{width:100%}
 .fc-manual-preview img{max-width:100%;max-height:180px;border-radius:8px}
 .fc-library-picker{display:none;margin-top:10px;padding:10px;border:1px solid #d9e4de;border-radius:12px;background:#f8fbf9}
 .fc-library-picker.is-open{display:block}
-.fc-library-picker input{margin-bottom:8px}
+.fc-library-picker input,.fc-library-picker select{width:100%;box-sizing:border-box;margin-bottom:8px;border:1px solid #ccd8d2;border-radius:10px;padding:10px;background:#fff;font:inherit}
 .fc-library-list{max-height:230px;overflow:auto;display:grid;gap:6px}
 .fc-library-option{width:100%;text-align:left;border:1px solid #d8e2dc;background:#fff;border-radius:9px;padding:9px 10px;cursor:pointer;color:#173f31}
 .fc-library-option b{display:block;font-size:13px}.fc-library-option small{display:block;color:#687a70;margin-top:3px}
@@ -5187,7 +5187,10 @@ window.esc = window.esc || function(v){
         <div class="fc-manual-head"><strong>✏️ Cambiar ejercicio</strong><button onclick="window.__fcManualSelectedExercise=null;document.getElementById('fcManualModal').remove()">✕</button></div>
         <button type="button" class="week-exchange" onclick="fcToggleLibraryPicker()">📚 Elegir ejercicio del catálogo</button>
         <div id="fcLibraryPicker" class="fc-library-picker">
-          <input id="fcLibrarySearch" placeholder="Buscar por nombre, categoría u objetivo…" oninput="fcFilterLibraryPicker()">
+          <input id="fcLibrarySearch" placeholder="Buscar por nombre u objetivo…" oninput="fcFilterLibraryPicker()">
+          <select id="fcLibraryCategory" aria-label="Filtrar ejercicios por categoría" onchange="fcFilterLibraryPicker()">
+            <option value="">Todas las categorías y tipos</option>
+          </select>
           <div id="fcLibraryList" class="fc-library-list"></div>
           <div id="fcLibraryPicked" class="fc-library-picked"></div>
         </div>
@@ -5215,10 +5218,25 @@ window.esc = window.esc || function(v){
   };
   window.fcFilterLibraryPicker=function(){
     const list=document.getElementById('fcLibraryList');if(!list)return;
-    const q=(document.getElementById('fcLibrarySearch')?.value||'').trim().toLocaleLowerCase('es');
+    const search=(document.getElementById('fcLibrarySearch')?.value||'').trim().toLocaleLowerCase('es');
+    const categorySelect=document.getElementById('fcLibraryCategory');
     const catalog=typeof window.__fcGetExerciseCatalog==='function'?window.__fcGetExerciseCatalog():[];
-    const matches=catalog.filter(e=>[e.name,e.cat,e.category,e.type,e.objective,e.execution,e.material].join(' ').toLocaleLowerCase('es').includes(q)).slice(0,120);
-    list.innerHTML=matches.map(e=>'<button type="button" class="fc-library-option" onclick="fcSelectLibraryExercise('+Number(e.id)+')"><b>'+esc(e.name)+'</b><small>'+esc(e.cat||e.category||'Sin categoría')+' · '+esc(e.objective||e.type||'')+(e.custom?' · ⭐ Propio':'')+'</small></button>').join('')||'<div class="empty" style="display:block">No hay ejercicios que coincidan.</div>';
+    // Crear las opciones desde el catálogo real, sin modificar ni duplicar ejercicios.
+    if(categorySelect&&!categorySelect.dataset.ready){
+      const values=new Set();
+      catalog.forEach(e=>{[e.cat,e.category,e.type].forEach(v=>{const value=String(v||'').trim();if(value)values.add(value);});});
+      Array.from(values).sort((a,b)=>a.localeCompare(b,'es')).forEach(value=>{
+        const option=document.createElement('option');option.value=value;option.textContent=value;categorySelect.appendChild(option);
+      });
+      categorySelect.dataset.ready='1';
+    }
+    const selectedCategory=categorySelect?.value||'';
+    const matches=catalog.filter(e=>{
+      const searchable=[e.name,e.cat,e.category,e.type,e.objective,e.execution,e.material].join(' ').toLocaleLowerCase('es');
+      const categories=[e.cat,e.category,e.type].map(v=>String(v||'').trim());
+      return (!search||searchable.includes(search))&&(!selectedCategory||categories.includes(selectedCategory));
+    }).slice(0,120);
+    list.innerHTML=matches.map(e=>'<button type="button" class="fc-library-option" onclick="fcSelectLibraryExercise('+Number(e.id)+')"><b>'+esc(e.name)+'</b><small>'+esc(e.cat||e.category||'Sin categoría')+' · '+esc(e.type||e.objective||'')+(e.custom?' · ⭐ Propio':'')+'</small></button>').join('')||'<div class="empty" style="display:block">No hay ejercicios que coincidan.</div>';
   };
   window.fcSelectLibraryExercise=function(id){
     const catalog=typeof window.__fcGetExerciseCatalog==='function'?window.__fcGetExerciseCatalog():[];
