@@ -3107,7 +3107,7 @@ window.switchMainTab = window.switchMainTab || function(tab){
       <div><label>Incluir ejercicios propios</label><select id="seasonCustom"><option value="yes" selected>Sí</option><option value="no">No</option></select></div>
     </div>
     <div class="season-note" style="margin-top:15px">
-      <b>Estructura de referencia:</b> 10' movilidad · 5' minijuego · 15' posesión · 15' técnico-táctico · 15' finalización · bloque final de partido.
+      <b>Estructura de referencia:</b> 10' movilidad · 5' minijuego · 15' posesión · 15' finalización · 15' técnico-táctico / transiciones · bloque final de partido.
       La web mantiene esta lógica y reajusta el partido si cambias la duración total. La movilidad de 10' se conserva aquí porque forma parte de la planificación infantil que me pasaste.
     </div>
     <div class="season-actions">
@@ -3314,18 +3314,39 @@ async function deleteCustomExercise(id){
     console.error(err);setCustomStatus(`No se pudo eliminar el ejercicio. ${err?.message||err}`,true);
   }
 }
+// Catálogo compartido: clasificación común para ambos generadores y selectores.
+function fpNorm(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
+function fpExerciseGroup(e){
+  const t=fpNorm([e.name,e.objective,e.execution,e.type,e.cat,e.category].join(' '));
+  const raw=fpNorm(e.cat||e.category||'');
+  if(/movilidad|calentamiento articular|flexibilidad/.test(t)||/movilidad/.test(raw)) return 'Movilidad y preparación';
+  if(/fuerza|prevencion|estabilidad|core|propiocepcion|propiocepcion|potencia muscular/.test(t)||/fuerza|prevencion/.test(raw)) return 'Fuerza y prevención';
+  if(/finaliz|remate|tiro a puerta|disparo|porter[ia]|golpeo a puerta/.test(t)||/finaliz|tiro/.test(raw)) return 'Finalización';
+  if(/transicion|repliegue|contraataque|presion tras perdida|salida de presion|superioridad|inferioridad|duelo|1x1|2x1|2x2|3x2|3x3|4x4|toma de decisiones|tecnico tactico|tactico/.test(t)||/tactico|transicion/.test(raw)) return 'Técnico-táctico y transiciones';
+  if(/posesion|rondo|conservacion|comodin|circulacion|apoyos|mantener el balon/.test(t)||/posesion|rondo/.test(raw)) return 'Posesión y rondos';
+  if(/juego reducido|partidillo|mini partido|situacion real de juego/.test(t)||/juego reducido/.test(raw)) return 'Juegos reducidos';
+  if(/circuito|conduccion|regate|finta|control orientado|pase y control|tecnica individual/.test(t)||/circuito|tecnica/.test(raw)) return 'Circuitos técnicos';
+  if(/velocidad|reaccion|aceleracion|cambio de direccion|agilidad|coordinacion/.test(t)||/velocidad|reaccion|agilidad/.test(raw)) return 'Velocidad, reacción y cambios de dirección';
+  if(/activacion sin balon|sin balon|pilla pilla|persecucion|relevos|juego de activacion/.test(t)||/activacion/.test(raw)) return 'Activación sin balón';
+  if(/minijuego|juego inicial|juego de activacion|activacion con balon|balon loco|atrapa/.test(t)||/juego inicial/.test(raw)) return 'Activación con balón y minijuegos';
+  if(/juego/.test(raw)) return 'Activación con balón y minijuegos';
+  return 'Circuitos técnicos';
+}
+const FP_EXERCISE_GROUPS=['Movilidad y preparación','Activación sin balón','Activación con balón y minijuegos','Velocidad, reacción y cambios de dirección','Fuerza y prevención','Posesión y rondos','Circuitos técnicos','Finalización','Técnico-táctico y transiciones','Juegos reducidos','Mis ejercicios'];
+function fpDisplayGroup(e){return (e.custom===true||e.es_personal===true)?'Mis ejercicios':fpExerciseGroup(e);}
+function fpGroupForBlock(block){return ({minigame:['Activación con balón y minijuegos','Activación sin balón','Velocidad, reacción y cambios de dirección'],possession:['Posesión y rondos'],finishing:['Finalización'],technicalTactical:['Técnico-táctico y transiciones','Juegos reducidos']})[block]||[];}
 function customVisual(x){return x.photo?`<img class="custom-photo" src="${x.photo}" alt="${escHTML(x.name)}">`:renderExerciseDiagram(x)}
 let session=[];function uniq(a){return [...new Set(a)].sort()}function fill(id,vals){const e=document.getElementById(id);vals.forEach(v=>{let o=document.createElement('option');o.value=v;o.textContent=v;e.appendChild(o)})}
-fill('cat',uniq(EX.map(x=>x.cat)));fill('type',uniq(EX.map(x=>x.type)));fill('ball',uniq(EX.map(x=>x.ball)));fill('intensity',uniq(EX.map(x=>x.intensity)));fill('playersFilter',uniq(EX.map(x=>x.players)));
-function filterCards(){const q=document.getElementById('search').value.toLowerCase(),f={cat:cat.value,type:type.value,ball:ball.value,intensity:intensity.value,players:playersFilter.value};let n=0;document.querySelectorAll('.card').forEach(c=>{const x=EX.find(e=>e.id==c.dataset.id),s=c.dataset.search;const ok=(!q||s.includes(q))&&(!f.cat||x.cat==f.cat)&&(!f.type||x.type==f.type)&&(!f.ball||x.ball==f.ball)&&(!f.intensity||x.intensity==f.intensity)&&(!f.players||x.players==f.players);c.style.display=ok?'flex':'none';if(ok)n++});document.getElementById('count').textContent=n;document.getElementById('empty').style.display=n?'none':'block'}
+fill('cat',FP_EXERCISE_GROUPS);fill('type',uniq(EX.map(x=>x.type)));fill('ball',uniq(EX.map(x=>x.ball)));fill('intensity',uniq(EX.map(x=>x.intensity)));fill('playersFilter',uniq(EX.map(x=>x.players)));
+function filterCards(){const q=document.getElementById('search').value.toLowerCase(),f={cat:cat.value,type:type.value,ball:ball.value,intensity:intensity.value,players:playersFilter.value};let n=0;document.querySelectorAll('.card').forEach(c=>{const x=EX.find(e=>e.id==c.dataset.id),s=c.dataset.search;const ok=(!q||s.includes(q))&&(!f.cat||fpDisplayGroup(x)==f.cat)&&(!f.type||x.type==f.type)&&(!f.ball||x.ball==f.ball)&&(!f.intensity||x.intensity==f.intensity)&&(!f.players||x.players==f.players);c.style.display=ok?'flex':'none';if(ok)n++});document.getElementById('count').textContent=n;document.getElementById('empty').style.display=n?'none':'block'}
 function randomVisible(){const a=[...document.querySelectorAll('.card')].filter(c=>c.style.display!=='none');if(!a.length)return;const c=a[Math.floor(Math.random()*a.length)];c.scrollIntoView({behavior:'smooth',block:'center'});c.style.outline='4px solid #86efac';setTimeout(()=>c.style.outline='',1200)}
 function addExercise(id){const x=EX.find(e=>e.id==id);session.push({...x,minutes:2});renderSession();document.getElementById('session').classList.add('show')}function removeExercise(i){session.splice(i,1);renderSession()}
 function renderSession(){const list=document.getElementById('sessionList');if(!list)return;list.innerHTML='';session.forEach((x,i)=>{const d=document.createElement('div');d.className='item';d.innerHTML=`<div><b>${i+1}. ${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.intensity)}${x.custom?' · ⭐ Propio':''}</small></div><input type="number" min="0.5" max="10" step="0.5" value="${Number(x.minutes||0)}" onchange="session[${i}].minutes=Number(this.value);renderSession();renderGeneratedSession()"><div class="gitem-actions"><button class="light" onclick="replaceGeneratedExercise(${i},'random')" title="Cambiar aleatoriamente">🔄</button><button class="light" onclick="openGeneratorExercisePicker(${i})" title="Elegir ejercicio">✏️</button><button class="remove" onclick="removeExercise(${i})">×</button></div>`;list.appendChild(d)});const t=session.reduce((a,x)=>a+Number(x.minutes||0),0);const total=document.getElementById('totalTime');if(total)total.textContent=t.toFixed(1);const count=document.getElementById('sessionCount');if(count)count.textContent=session.length;const warn=document.getElementById('sessionWarn');if(warn)warn.textContent=t>20?'⚠ La sesión supera 20 minutos.':t<18?'Puedes añadir 1-2 minutos de transición/pausa.':'';if(typeof renderGeneratedSession==='function')renderGeneratedSession()}
 
 function generatorEligibleExercises(excludeIds=new Set()){const g=document.getElementById('goal')?.value||'auto',p=Number(document.getElementById('players')?.value||0),eq=document.getElementById('equipment')?.value||'normal';let pool=EX.filter(x=>x.useInGenerator!==false&&!isActivationOrIndividual(x)&&!excludeIds.has(Number(x.id)));pool=pool.filter(x=>{const z=String(x.players||'').split('-').map(Number),min=z[0]||0,max=z[1]||z[0]||0;const range=!min||!max||p>=min&&p<=max;const goal=goalMatch(x,g);const eqok=eq==='normal'||(eq==='low'&&!/Balones|petos/i.test(x.material||''))||(eq==='ball'&&x.ball!=='Sin balón');return range&&goal&&eqok});if(pool.length<1)pool=EX.filter(x=>x.useInGenerator!==false&&!isActivationOrIndividual(x)&&!excludeIds.has(Number(x.id)));return pool}
 function replaceGeneratedExercise(index,mode='random'){if(!session[index])return;const excluded=new Set(session.map((x,i)=>i===index?null:Number(x.id)).filter(v=>v!=null));let pool=generatorEligibleExercises(excluded);if(!pool.length){alert('No hay otro ejercicio compatible para sustituirlo.');return}const old=session[index];const fresh=pool[Math.floor(Math.random()*pool.length)];session[index]={...fresh,minutes:Number(old.minutes||10)};renderSession();renderGeneratedSession();document.getElementById('session')?.classList.add('show')}
-function openGeneratorExercisePicker(index){if(!session[index])return;let old=document.getElementById('genPickerOverlay');if(old)old.remove();const overlay=document.createElement('div');overlay.id='genPickerOverlay';overlay.className='gen-picker-overlay show';overlay.innerHTML=`<div class="gen-picker"><div class="gen-picker-head"><h3>✏️ Cambiar ejercicio · ${index+1}</h3><button onclick="document.getElementById('genPickerOverlay').remove()">✕</button></div><input id="genPickerSearch" class="gen-picker-search" placeholder="Buscar ejercicio..." oninput="filterGeneratorPicker()"><div id="genPickerList" class="gen-picker-list"></div></div>`;document.body.appendChild(overlay);overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});renderGeneratorPicker(index)}
-function renderGeneratorPicker(index){const list=document.getElementById('genPickerList');if(!list)return;const q=(document.getElementById('genPickerSearch')?.value||'').toLowerCase().trim();const excluded=new Set(session.map((x,i)=>i===index?null:Number(x.id)).filter(v=>v!=null));const pool=EX.filter(x=>!excluded.has(Number(x.id))).filter(x=>{const text=[x.name,x.cat,x.type,x.objective,x.material,x.players].join(' ').toLowerCase();return !q||text.includes(q)});list.innerHTML=pool.map(x=>`<button class="gen-picker-option" onclick="selectGeneratorExercise(${index},${Number(x.id)})"><span><b>${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.objective||'')}</small>${x.custom?'<span class="custom-badge">⭐ Ejercicio propio</span>':''}</span><span>Seleccionar</span></button>`).join('')||'<div class="empty" style="display:block">No hay ejercicios que coincidan.</div>'}
+function openGeneratorExercisePicker(index){if(!session[index])return;let old=document.getElementById('genPickerOverlay');if(old)old.remove();const overlay=document.createElement('div');overlay.id='genPickerOverlay';overlay.className='gen-picker-overlay show';overlay.innerHTML=`<div class="gen-picker"><div class="gen-picker-head"><h3>✏️ Cambiar ejercicio · ${index+1}</h3><button onclick="document.getElementById('genPickerOverlay').remove()">✕</button></div><input id="genPickerSearch" class="gen-picker-search" placeholder="Buscar ejercicio..." oninput="filterGeneratorPicker()"><select id="genPickerCategory" class="gen-picker-search" onchange="filterGeneratorPicker()"><option value="">Todas las categorías</option>${FP_EXERCISE_GROUPS.map(c=>`<option value="${escHTML(c)}">${escHTML(c)}</option>`).join('')}</select><div id="genPickerList" class="gen-picker-list"></div></div>`;document.body.appendChild(overlay);overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});renderGeneratorPicker(index)}
+function renderGeneratorPicker(index){const list=document.getElementById('genPickerList');if(!list)return;const q=(document.getElementById('genPickerSearch')?.value||'').toLowerCase().trim();const excluded=new Set(session.map((x,i)=>i===index?null:Number(x.id)).filter(v=>v!=null));const category=document.getElementById('genPickerCategory')?.value||'';const pool=EX.filter(x=>!excluded.has(Number(x.id))).filter(x=>{const text=[x.name,x.cat,x.type,x.objective,x.material,x.players].join(' ').toLowerCase();return (!q||text.includes(q))&&(!category||fpDisplayGroup(x)===category)});list.innerHTML=pool.map(x=>`<button class="gen-picker-option" onclick="selectGeneratorExercise(${index},${Number(x.id)})"><span><b>${escHTML(x.name)}</b><small>${escHTML(x.cat)} · ${escHTML(x.objective||'')}</small>${x.custom?'<span class="custom-badge">⭐ Ejercicio propio</span>':''}</span><span>Seleccionar</span></button>`).join('')||'<div class="empty" style="display:block">No hay ejercicios que coincidan.</div>'}
 function filterGeneratorPicker(){const idx=Number(document.querySelector('#genPickerOverlay h3')?.textContent.match(/(\d+)/)?.[1]||1)-1;renderGeneratorPicker(idx)}
 function selectGeneratorExercise(index,id){const fresh=EX.find(x=>Number(x.id)===Number(id));if(!fresh||!session[index])return;session[index]={...fresh,minutes:Number(session[index].minutes||10)};document.getElementById('genPickerOverlay')?.remove();renderSession();renderGeneratedSession();document.getElementById('session')?.classList.add('show')}
 function addIndividualExerciseToGenerated(){let idx=session.length;session.push({...({name:'Nuevo ejercicio'}),minutes:2});renderSession();openGeneratorExercisePicker(idx)}
@@ -4418,8 +4439,8 @@ window.esc = window.esc || function(v){
       {block:'mobility',time:'10 min',name:'Movilidad dinámica + balón',desc:'Movilidad dinámica y coordinación específica para preparar el trabajo de la sesión.',objective:'Preparación y calidad de movimiento'},
       {block:'minigame',time:'5 min',name:min.name,desc:min.execution,objective:min.objective},
       {block:'possession',time:'15 min',name:pos.name,desc:pos.execution,objective:pos.objective},
-      {block:'technical',time:'15 min',name:tech.name,desc:tech.execution,objective:tech.objective},
       {block:'finishing',time:'15 min',name:fin.name,desc:fin.execution,objective:fin.objective},
+      {block:'technical',time:'15 min',name:tech.name,desc:tech.execution,objective:tech.objective},
       {block:'match',time:matchTime+' min',name:match.name,desc:match.execution,objective:match.objective}
     ];
     return {date:iso(date),dateLabel:formatDate(iso(date)),phase,focus,sessionIndex,rows};
@@ -4781,14 +4802,12 @@ window.esc = window.esc || function(v){
 
   function pick(block,p,goal,used,recent,session){
     const pool=allExercises();
-    let eligible=pool;
-    if(block==='technicalTactical'){
-      eligible=pool.filter(isTechnicalTactical);
-    }
+    let eligible=pool.filter(e=>fpGroupForBlock(block).includes(fpExerciseGroup(e)));
+    if(block==='technicalTactical') eligible=eligible.filter(isTechnicalTactical).length?eligible.filter(isTechnicalTactical):eligible;
     // Si no hay suficientes tareas clasificadas, mantenemos un pequeño
     // respaldo basado en la familia táctica, sin contaminar el bloque con
     // circuitos puramente técnicos.
-    if(block==='technicalTactical' && eligible.length===0){
+    if(eligible.length===0 && block==='technicalTactical'){
       eligible=pool.filter(e=>{
         const t=n([e.name,e.objective,e.execution,e.type,e.cat,e.category].join(' '));
         return /(1x1|1 vs 1|2x1|2 vs 1|2x2|2 vs 2|3x2|3 vs 2|superioridad|transici|presi[oó]n|salida de presi|duelo|juego reducido|toma de decisiones|decisi[oó]n)/.test(t);
@@ -5223,9 +5242,7 @@ window.esc = window.esc || function(v){
     const catalog=typeof window.__fcGetExerciseCatalog==='function'?window.__fcGetExerciseCatalog():[];
     // Crear las opciones desde el catálogo real, sin modificar ni duplicar ejercicios.
     if(categorySelect&&!categorySelect.dataset.ready){
-      const values=new Set();
-      catalog.forEach(e=>{[e.cat,e.category,e.type].forEach(v=>{const value=String(v||'').trim();if(value)values.add(value);});});
-      Array.from(values).sort((a,b)=>a.localeCompare(b,'es')).forEach(value=>{
+      FP_EXERCISE_GROUPS.forEach(value=>{
         const option=document.createElement('option');option.value=value;option.textContent=value;categorySelect.appendChild(option);
       });
       categorySelect.dataset.ready='1';
@@ -5233,10 +5250,9 @@ window.esc = window.esc || function(v){
     const selectedCategory=categorySelect?.value||'';
     const matches=catalog.filter(e=>{
       const searchable=[e.name,e.cat,e.category,e.type,e.objective,e.execution,e.material].join(' ').toLocaleLowerCase('es');
-      const categories=[e.cat,e.category,e.type].map(v=>String(v||'').trim());
-      return (!search||searchable.includes(search))&&(!selectedCategory||categories.includes(selectedCategory));
+      return (!search||searchable.includes(search))&&(!selectedCategory||fpDisplayGroup(e)===selectedCategory);
     }).slice(0,120);
-    list.innerHTML=matches.map(e=>'<button type="button" class="fc-library-option" onclick="fcSelectLibraryExercise('+Number(e.id)+')"><b>'+esc(e.name)+'</b><small>'+esc(e.cat||e.category||'Sin categoría')+' · '+esc(e.type||e.objective||'')+(e.custom?' · ⭐ Propio':'')+'</small></button>').join('')||'<div class="empty" style="display:block">No hay ejercicios que coincidan.</div>';
+    list.innerHTML=matches.map(e=>'<button type="button" class="fc-library-option" onclick="fcSelectLibraryExercise('+Number(e.id)+')"><b>'+esc(e.name)+'</b><small>'+esc(fpDisplayGroup(e))+' · '+esc(e.type||e.objective||'')+(e.custom?' · ⭐ Propio':'')+'</small></button>').join('')||'<div class="empty" style="display:block">No hay ejercicios que coincidan.</div>';
   };
   window.fcSelectLibraryExercise=function(id){
     const catalog=typeof window.__fcGetExerciseCatalog==='function'?window.__fcGetExerciseCatalog():[];
